@@ -15,7 +15,7 @@ define('DEFAULT_ENV', 'test');
 function caboose_drush_help($section) {
   switch ($section) {
     case 'drush:caboose':
-      return dt('Refresh the database on your local development environment from Pantheon. Will also make several changes necessary for daily work.');
+      return dt('Refresh the database on your local development environment from Pantheon and make changes necessary for your daily coding glory.');
   }
 }
 
@@ -26,14 +26,12 @@ function caboose_drush_command() {
   $items['caboose-fresh'] = array(
     'description' => 'Refresh your local development environment from Pantheon.',
     'examples' => array(
-      'drush caboose live' => 'Download and install latest backup of production.',
-      'drush caboose test untouched' => 'Download and install latest backup of test environment on prod but do not alter the site afteward.',
-      'drush caboose dev' => 'Download and install latest backup of "dev" environment on prod.',
-      //'drush caboose now' => 'Trigger a backup and install it from the live production site repsesenting a snapshot of right now. Only for emergencies!',
+      'drush caboose live' => 'Download and install the latest backup of production.',
+      'drush caboose test --untouched' => 'Download and install latest backup of test environment but do not alter the site.',
+      'drush caboose dev --now' => 'Create a backup of the dev environment, download and install.',
     ),
     'arguments' => array(
       'environment' => 'Environment to grab database from.',
-      'untouched' => 'Leave the database exactly how it came down. No changes.',
     ),
     // Required for variable_get. Maybe a way to avoid.
     'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
@@ -41,6 +39,7 @@ function caboose_drush_command() {
   );
   return $items;
 }
+
 
 /**
  * Command argument complete callback.
@@ -90,9 +89,10 @@ function drush_caboose_fresh($env = DEFAULT_ENV, $alter = 'touchup') {
   }
   extract($session_data);
 
+  $target_site = '@self';
+
   // Download and load code modified from drush_terminus_pantheon_site_load_backup().
   // Retrieve the latest bucket.
-  // @todo Allow a "now" to trigger immediate backup. #3538
   $bucket = terminus_latest_bucket($site_uuid, $env, 'database');
 
   drush_print('Downloading database from (' . $env . ') site backup.' . "\n");
@@ -106,6 +106,7 @@ function drush_caboose_fresh($env = DEFAULT_ENV, $alter = 'touchup') {
   if (!$path && !drush_get_context('DRUSH_SIMULATE')) {
     return drush_set_error('DRUSH_PSITE_DOWNLOAD_FAILED', 'Unable to download ' . $filename . ' to ' . $destination . ' from ' . $data->url);
   }
+
   drush_print("Download was successful. It's here...");
   drush_print("$path\n");
 
@@ -122,28 +123,26 @@ function drush_caboose_fresh($env = DEFAULT_ENV, $alter = 'touchup') {
   drush_print("Database load complete.\n");
   drush_delete_dir($path);
 
-  drush_print("Disabling modules.\n");
-  $modules = array(
-    'redis',
-    'tableau_user_profile_sync',
-    'new_relic_rubicon',
-  );
-  if (!empty($modules)) {
-    module_disable($modules);
+  // Sanitize the local data for security.
+  drush_print("Grab settings...\n");
+  if (file_exists(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'settings.inc')) {
+    require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'settings.inc');
+  }
+
+  if (!isset($modules_disable)) {
+    drush_print("Disabling modules.\n");
+    module_disable($modules_disable);
   }
 
   drush_print("Running updates...");
   drush_invoke_process('@self', 'updb');
 
-  drush_print("\nEnabling local environment modules.\n");
-  $modules = array(
-    'stage_file_proxy',
-  );
-  if (!empty($modules)) {
+  if (!empty($modules_enable)) {
+    drush_print("\nEnabling modules.\n");
     module_enable($modules);
   }
 
-  // Optional include.
+  // Optional local changes include.
   drush_print("Running custom commands...\n");
   if (file_exists(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'optional.inc')) {
     require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'optional.inc');
@@ -152,6 +151,7 @@ function drush_caboose_fresh($env = DEFAULT_ENV, $alter = 'touchup') {
   drush_print("Done. Clearing cache.\n");
   // @todo Might be nice to clear the Drush cache.
   cache_clear_all();
+
 
   $end_graphic = <<<EOD
                                           ;;;          
@@ -204,12 +204,6 @@ function drush_caboose_validate($env = DEFAULT_ENV) {
     case 'dev':
       // Just do it.
       break;
-    // @todo Allow a live backup of production right now! #3538
-    /*
-    case 'now':
-      // Require confirmation.
-      break;
-    */
     default:
     return drush_set_error('NOT_A_THING', dt("\nSay what? That's not a thing.\n"));
       break;

@@ -1,18 +1,18 @@
 # Caboose
-### Pantheon Terminus, Drush command
+### Pantheon Terminus, Drush (Drupal) refresh command
 
-Local refresh Drush command from Pantheon environments.
+Refresh the database on your local development environment from Pantheon and make changes necessary for your daily coding glory.
 
 __Installation:__
  1. Clone into your ~/.drush folder.
- 2. Copy default.optional.inc as optional.inc
- 3. Set a site UUID in settings.local.php
+ 2. Set a site UUID in sites/all/settings.local.php
   * $conf['caboose_pantheon_uuid'] = '44444444-3333-2222-1111-000000000000';
- 4. Run command from site root.
+ 3. Copy default.settings.inc as settings.inc and adjust (optional).
+ 4. Copy default.optional.inc as optional.inc and adjust (optional).
+ 5. Run command from site root.
 
-__Examples:__
- * ```drush caboose dev```
- * ```drush caboose test```
+__Basic examples:__
  * ```drush caboose live```
-
+ * ```drush caboose test```
+ * ```drush caboose dev```
 Default environment is test.
