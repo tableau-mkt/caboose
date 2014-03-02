@@ -16,6 +16,8 @@ function caboose_drush_help($section) {
   switch ($section) {
     case 'drush:caboose':
       return dt('Refresh the database on your local development environment from Pantheon and make changes necessary for your daily coding glory.');
+    case 'drush:logger':
+      return dt('Grab logs from Pantheon environements.');
   }
 }
 
@@ -37,6 +39,18 @@ function caboose_drush_command() {
     'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
     'aliases' => array('caboose'),
   );
+  $items['caboose-logger'] = array(
+    'description' => 'Get loges from from Pantheon.',
+    'examples' => array(
+      'drush logger live' => 'Grab logs from the live environement.',
+    ),
+    'arguments' => array(
+      'environment' => 'Environment to grab database from.',
+    ),
+    // Required for variable_get. Maybe a way to avoid.
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
+    'aliases' => array('logger'),
+  );
   return $items;
 }
 
@@ -47,6 +61,40 @@ function caboose_drush_command() {
 function caboose_fresh_complete() {
   return array('values' => array('live', 'test', 'dev'));
 }
+
+
+/**
+ * Command callback. Grab logs from Pantheon.
+ *
+ * @param $env
+ *   The dev/test/live environment to target.
+ */
+function drush_caboose_logger($env = DEFAULT_ENV) {
+  // Set site definition.
+  if (variable_get('caboose_pantheon_uuid', FALSE)) {
+    $site_uuid = variable_get('caboose_pantheon_uuid', NULL);
+  }
+
+  // terminus_api_site_environment_bindings($site_uuid, $env, );
+  $path = 'environments/'. $env .'/bindings';
+  if ($type) {
+    $path .= '?type='. urlencode('appserver');
+  }
+  $bindings = terminus_request('site', $site_uuid, $path, 'GET');
+  $bindings = json_decode($result['json']);
+  
+  drush_print($bindings);
+
+  foreach ($bindings as $bid => $binding) {
+    $host = $binding->host;
+    drush_print('BID: ' . $bid . "\n\n");
+    drush_print('HOST: ' . $host . "\n\n");
+    # Now grab them all with SFTP. 
+    # This assumes you have a ssh key with no pass, or a running ssh agent.
+    passthru("echo 'get logs/nginx-access.log nginx-$bid.log' | sftp -o Port=2222 -b - $env.$site_uuid@$host");
+  }
+}
+
 
 /**
  * Command callback. Refresh your local environment.
