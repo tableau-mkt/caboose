@@ -16,3 +16,14 @@ __Basic examples:__
  * ```drush caboose test```
  * ```drush caboose dev```
 Default environment is test.
+
+__Database changes:__
+To avoid any database changes after refresh use the untouched flag.
+
+__Fresh backups:__
+To create an immediate backup of the target environment you can use the "now" option. Careful of live!
+ 
+ __Examples:__
+ * ```drush caboose live``` Download and install the latest backup of production.
+ * ```drush caboose test --untouched``` Download and install latest backup of test environment but do not alter the site.
+ * ```drush caboose dev --now``` Create a backup of the dev environment, download and install.

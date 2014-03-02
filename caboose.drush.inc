@@ -33,6 +33,10 @@ function caboose_drush_command() {
     'arguments' => array(
       'environment' => 'Environment to grab database from.',
     ),
+    'options' => array(
+      'untouched' => 'Optional: do not alter the database once loaded.',
+      'now' => 'Optional: make a new backup immediately.',
+    ),
     // Required for variable_get. Maybe a way to avoid.
     'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
     'aliases' => array('caboose'),
@@ -91,6 +95,12 @@ function drush_caboose_fresh($env = DEFAULT_ENV, $alter = 'touchup') {
 
   $target_site = '@self';
 
+  // Allow a "now" to trigger immediate backup. #3538
+  if (drush_get_option('now', FALSE)) {
+    drush_print('Creating backup.');
+    terminus_api_site_make_backup($site_uuid, $env, 'backup', FALSE, TRUE, FALSE);
+  }
+
   // Download and load code modified from drush_terminus_pantheon_site_load_backup().
   // Retrieve the latest bucket.
   $bucket = terminus_latest_bucket($site_uuid, $env, 'database');
@@ -123,35 +133,39 @@ function drush_caboose_fresh($env = DEFAULT_ENV, $alter = 'touchup') {
   drush_print("Database load complete.\n");
   drush_delete_dir($path);
 
-  // Sanitize the local data for security.
-  drush_print("Grab settings...\n");
-  if (file_exists(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'settings.inc')) {
-    require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'settings.inc');
+  if (!drush_get_option('untouched', FALSE)) {
+    // Sanitize the local data for security.
+    drush_print("Grab settings...\n");
+    if (file_exists(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'settings.inc')) {
+      require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'settings.inc');
+    }
+
+    if (!isset($modules_disable)) {
+      drush_print("Disabling modules.\n");
+      module_disable($modules_disable);
+    }
+
+    drush_print("Running updates...");
+    drush_invoke_process('@self', 'updb');
+
+    if (!empty($modules_enable)) {
+      drush_print("\nEnabling modules.\n");
+      module_enable($modules);
+    }
+
+    // Optional local changes include.
+    drush_print("Running custom commands...\n");
+    if (file_exists(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'optional.inc')) {
+      require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'optional.inc');
+    }
+
+    drush_print("Done. Clearing cache.\n");
+    // @todo Might be nice to clear the Drush cache.
+    cache_clear_all();
   }
-
-  if (!isset($modules_disable)) {
-    drush_print("Disabling modules.\n");
-    module_disable($modules_disable);
+  else {
+    drush_print("Done. Database as is.\n");
   }
-
-  drush_print("Running updates...");
-  drush_invoke_process('@self', 'updb');
-
-  if (!empty($modules_enable)) {
-    drush_print("\nEnabling modules.\n");
-    module_enable($modules);
-  }
-
-  // Optional local changes include.
-  drush_print("Running custom commands...\n");
-  if (file_exists(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'optional.inc')) {
-    require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'optional.inc');
-  }
-
-  drush_print("Done. Clearing cache.\n");
-  // @todo Might be nice to clear the Drush cache.
-  cache_clear_all();
-
 
   $end_graphic = <<<EOD
                                           ;;;          
