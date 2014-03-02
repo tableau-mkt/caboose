@@ -142,6 +142,12 @@ function drush_caboose_fresh($env = DEFAULT_ENV, $alter = 'touchup') {
     module_enable($modules);
   }
 
+  // Sanitize the local data for security.
+  drush_print("Sanitizing local data...\n");
+  if (file_exists(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'sanitize.inc')) {
+    require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'sanitize.inc');
+  }
+
   // Optional local changes include.
   drush_print("Running custom commands...\n");
   if (file_exists(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'optional.inc')) {
