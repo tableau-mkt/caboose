@@ -118,11 +118,12 @@ function drush_caboose_fresh($env = DEFAULT_ENV) {
   shell_exec('gunzip ' . $path);
   $path = strstr($path, '.gz', TRUE);
 
-  // Avoid PHP for memory reasons.
   drush_print("Overwriting database manually.");
-  // May still want to kill the DB.
-  // drush sqlq "DROP DATABASE $DB_NAME; CREATE DATABASE $DB_NAME"
-  drush_print(_drush_sql_connect() . ' < ' . $path);
+  // Drop the whole DB to get started fresh.
+  $db_spec = _drush_sql_get_db_spec();
+  shell_exec(_drush_sql_connect() . ' -e "DROP DATABASE .' . $db_spec['database']);
+  shell_exec(_drush_sql_connect() . ' -e "CREATE DATABASE .' . $db_spec['database']);
+  // Avoid PHP based import for memory reasons.
   shell_exec(_drush_sql_connect() . ' < ' . $path);
 
   drush_print("Database load complete.\n");
