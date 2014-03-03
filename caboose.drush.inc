@@ -132,19 +132,19 @@ function drush_caboose_fresh($env = DEFAULT_ENV) {
   drush_print("Grab settings...\n");
   if (file_exists(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'settings.inc')) {
     require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'settings.inc');
-  }
 
-  if (!isset($modules_disable)) {
-    drush_print("Disabling modules.\n");
-    module_disable($modules_disable);
-  }
+    if (isset($modules_disable) && count($modules_disable) > 0) {
+      drush_print("Disabling modules.\n");
+      module_disable($modules_disable);
+    }
 
-  drush_print("Running updates...");
-  drush_invoke_process('@self', 'updb');
+    drush_print("Running updates...");
+    drush_invoke_process('@self', 'updb');
 
-  if (!empty($modules_enable)) {
-    drush_print("\nEnabling modules.\n");
-    module_enable($modules);
+    if (isset($modules_enable) && count($modules_enable) > 0) {
+      drush_print("\nEnabling modules.\n");
+      module_enable($modules_enable);
+    }
   }
 
   // Optional local changes include.
