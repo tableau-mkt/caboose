@@ -6,7 +6,7 @@
 /**
  * Settings...
  */
-define('DEFAULT_ENV', 'test');
+define('DEFAULT_ENV', 'live');
 
 
 /**

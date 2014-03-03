@@ -12,7 +12,7 @@ __Installation:__
  5. Run command from site root.
 
 __Basic examples:__
- * ```drush caboose live```
+ * ```drush caboose```
  * ```drush caboose test```
  * ```drush caboose dev```
-Default environment is test.
+Default environment is live.
