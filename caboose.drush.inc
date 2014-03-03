@@ -57,7 +57,7 @@ function caboose_fresh_complete() {
  * @param $alter
  *   Whether to take any action against the database.
  */
-function drush_caboose_fresh($env = DEFAULT_ENV, $alter = 'touchup') {
+function drush_caboose_fresh($env = DEFAULT_ENV) {
   drush_print("  _     _   _       __             _                         ");
   drush_print(" | |___| |_( )___  / _|_ _ ___ ___| |_  ___ _ _    _  _ _ __ ");
   drush_print(" | / -_)  _|/(_-< |  _| '_/ -_|_-<| ' \/ -_) ' \\  | || | '_ \\");
@@ -101,6 +101,7 @@ function drush_caboose_fresh($env = DEFAULT_ENV, $alter = 'touchup') {
   $data = json_decode($result['json']);
   $filename = strstr(basename($data->url), '?', '_');
   $cache_duration = 86400*365;
+
   $path = _drush_download_file($data->url, $destination . DIRECTORY_SEPARATOR . $filename, $cache_duration);
 
   if (!$path && !drush_get_context('DRUSH_SIMULATE')) {
@@ -117,9 +118,13 @@ function drush_caboose_fresh($env = DEFAULT_ENV, $alter = 'touchup') {
   shell_exec('gunzip ' . $path);
   $path = strstr($path, '.gz', TRUE);
 
-  drush_print("Overwriting database with backup.");
-  drush_set_option('file', $path);
-  drush_sql_query();
+  // Avoid PHP for memory reasons.
+  drush_print("Overwriting database manually.");
+  // May still want to kill the DB.
+  // drush sqlq "DROP DATABASE $DB_NAME; CREATE DATABASE $DB_NAME"
+  drush_print(_drush_sql_connect() . ' < ' . $path);
+  shell_exec(_drush_sql_connect() . ' < ' . $path);
+
   drush_print("Database load complete.\n");
   drush_delete_dir($path);
 
@@ -151,7 +156,6 @@ function drush_caboose_fresh($env = DEFAULT_ENV, $alter = 'touchup') {
   drush_print("Done. Clearing cache.\n");
   // @todo Might be nice to clear the Drush cache.
   cache_clear_all();
-
 
   $end_graphic = <<<EOD
                                           ;;;          
