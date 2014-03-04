@@ -6,7 +6,7 @@
 /**
  * Settings...
  */
-define('DEFAULT_ENV', 'test');
+define('DEFAULT_ENV', 'live');
 
 
 /**
@@ -57,7 +57,7 @@ function caboose_fresh_complete() {
  * @param $alter
  *   Whether to take any action against the database.
  */
-function drush_caboose_fresh($env = DEFAULT_ENV, $alter = 'touchup') {
+function drush_caboose_fresh($env = DEFAULT_ENV) {
   drush_print("  _     _   _       __             _                         ");
   drush_print(" | |___| |_( )___  / _|_ _ ___ ___| |_  ___ _ _    _  _ _ __ ");
   drush_print(" | / -_)  _|/(_-< |  _| '_/ -_|_-<| ' \/ -_) ' \\  | || | '_ \\");
@@ -101,6 +101,7 @@ function drush_caboose_fresh($env = DEFAULT_ENV, $alter = 'touchup') {
   $data = json_decode($result['json']);
   $filename = strstr(basename($data->url), '?', '_');
   $cache_duration = 86400*365;
+
   $path = _drush_download_file($data->url, $destination . DIRECTORY_SEPARATOR . $filename, $cache_duration);
 
   if (!$path && !drush_get_context('DRUSH_SIMULATE')) {
@@ -117,9 +118,14 @@ function drush_caboose_fresh($env = DEFAULT_ENV, $alter = 'touchup') {
   shell_exec('gunzip ' . $path);
   $path = strstr($path, '.gz', TRUE);
 
-  drush_print("Overwriting database with backup.");
-  drush_set_option('file', $path);
-  drush_sql_query();
+  drush_print("Overwriting database manually.");
+  // Drop the whole DB to get started fresh.
+  $db_spec = _drush_sql_get_db_spec();
+  shell_exec(_drush_sql_connect() . ' -e "DROP DATABASE .' . $db_spec['database']);
+  shell_exec(_drush_sql_connect() . ' -e "CREATE DATABASE .' . $db_spec['database']);
+  // Avoid PHP based import for memory reasons.
+  shell_exec(_drush_sql_connect() . ' < ' . $path);
+
   drush_print("Database load complete.\n");
   drush_delete_dir($path);
 
@@ -127,19 +133,19 @@ function drush_caboose_fresh($env = DEFAULT_ENV, $alter = 'touchup') {
   drush_print("Grab settings...\n");
   if (file_exists(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'settings.inc')) {
     require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'settings.inc');
-  }
 
-  if (!isset($modules_disable)) {
-    drush_print("Disabling modules.\n");
-    module_disable($modules_disable);
-  }
+    if (isset($modules_disable) && count($modules_disable) > 0) {
+      drush_print("Disabling modules.\n");
+      module_disable($modules_disable);
+    }
 
-  drush_print("Running updates...");
-  drush_invoke_process('@self', 'updb');
+    drush_print("Running updates...");
+    drush_invoke_process('@self', 'updb');
 
-  if (!empty($modules_enable)) {
-    drush_print("\nEnabling modules.\n");
-    module_enable($modules);
+    if (isset($modules_enable) && count($modules_enable) > 0) {
+      drush_print("\nEnabling modules.\n");
+      module_enable($modules_enable);
+    }
   }
 
   // Sanitize the local data for security.
@@ -157,7 +163,6 @@ function drush_caboose_fresh($env = DEFAULT_ENV, $alter = 'touchup') {
   drush_print("Done. Clearing cache.\n");
   // @todo Might be nice to clear the Drush cache.
   cache_clear_all();
-
 
   $end_graphic = <<<EOD
                                           ;;;          
