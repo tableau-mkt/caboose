@@ -15,8 +15,8 @@ $admin_pass   = 'password';
 
 // Run queries.
 drush_print("Overwriting fields.\n");
-foreach($fields as $field) {
-  $query = "UPDATE field_data_field_$field SET field_$field_value=''";
+foreach($fields as $field => $value) {
+  $query = "UPDATE field_data_field_$field SET field_{$field}_value = '$value'";
   shell_exec(_drush_sql_connect() . ' -e "' . $query . '"');
   // Legacy approach.
   //$result = drush_invoke_process($target_site, 'sql-query', array($query), $options, $backend_options);
@@ -24,9 +24,9 @@ foreach($fields as $field) {
 
 // Account details.
 drush_print("Overwriting account data.\n");
-$query = "UPDATE users SET mail=CONCAT(PASSWORD(mail), '$email_domain'), pass='password', init=CONCAT(PASSWORD(init), '$email_domain')";
+$query = "UPDATE users SET mail = CONCAT(PASSWORD(mail), '$email_domain'), pass = 'password', init = CONCAT(PASSWORD(init), '$email_domain')";
 shell_exec(_drush_sql_connect() . ' -e "' . $query . '"');
 
 // Admin password.
 $user = user_load(1);
-_drush_user_password($user, $admin_pass);
+user_save($user, array('pass' => $admin_pass));
