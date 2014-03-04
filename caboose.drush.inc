@@ -152,6 +152,25 @@ function drush_caboose_fresh($env = DEFAULT_ENV) {
   drush_print("Sanitizing local data...\n");
   if (file_exists(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'sanitize.inc')) {
     require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'sanitize.inc');
+
+    // Overwrite fields.
+    drush_print("Overwriting fields.\n");
+    foreach($sanitize_fields as $field => $value) {
+      $query = "UPDATE field_data_field_$field SET field_{$field}_value = '$value'";
+      shell_exec(_drush_sql_connect() . ' -e "' . $query . '"');
+      // Legacy approach.
+      //$result = drush_invoke_process($target_site, 'sql-query', array($query), $options, $backend_options);
+    }
+    
+    // Account details.
+    drush_print("Overwriting account data.\n");
+    $query = "UPDATE users SET mail = CONCAT(PASSWORD(mail), '$email_domain'), pass = 'password', init = CONCAT(PASSWORD(init), '$email_domain')";
+    shell_exec(_drush_sql_connect() . ' -e "' . $query . '"');
+    
+    // Admin password.
+    $user = user_load(1);
+    user_save($user, array('pass' => $admin_pass));
+    
   }
 
   // Optional local changes include.
