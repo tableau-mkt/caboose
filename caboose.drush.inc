@@ -122,8 +122,8 @@ function drush_caboose_fresh($env = DEFAULT_ENV) {
   drush_print("Overwriting database manually.");
   // Drop the whole DB to get started fresh.
   $db_spec = _drush_sql_get_db_spec();
-  shell_exec(_drush_sql_connect() . ' -e "DROP DATABASE .' . $db_spec['database']);
-  shell_exec(_drush_sql_connect() . ' -e "CREATE DATABASE .' . $db_spec['database']);
+  shell_exec(_drush_sql_connect() . ' -e "DROP DATABASE ' . $db_spec['database'] . '"');
+  shell_exec(_drush_sql_connect() . ' -e "CREATE DATABASE ' . $db_spec['database'] . '"');
   // Avoid PHP based import for memory reasons.
   shell_exec(_drush_sql_connect() . ' < ' . $path);
 
