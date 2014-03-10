@@ -83,11 +83,12 @@ function drush_caboose_fresh($env = DEFAULT_ENV) {
   }
 
   // Get the user's session set.
-  $session_data = terminus_bootstrap();
-  if ($session_data === FALSE) {
+  if ($session_data = terminus_bootstrap()) {
+    extract($session_data);
+  }
+  else {
     return FALSE;
   }
-  extract($session_data);
 
   $target_site = '@self';
 
