@@ -9,6 +9,9 @@ $modules = array(
   'update',
   'styleguide',
   'livejs',
+  'forminspect',
+  'module_builder',
+  'project_src',
 );
 if (!empty($modules)) {
   module_enable($modules);
