@@ -164,7 +164,7 @@ function _caboose_install($env) {
  * Run through steps to alter the data how you want.
  */
 function _caboose_freshenup($env) {
-  // Sanitize the local data for security.
+  // Enable and disable modules.
   drush_print("Grabing settings...\n");
   if (file_exists(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'settings.inc')) {
     require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'settings.inc');
