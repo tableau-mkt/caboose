@@ -8,7 +8,6 @@
  */
 define('DEFAULT_ENV', 'live');
 
-
 /**
  * Implements hook_drush_help().
  */
@@ -34,12 +33,11 @@ function caboose_drush_command() {
       'environment' => 'Environment to grab database from.',
     ),
     // Required for variable_get. Maybe a way to avoid.
-    'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_FULL,
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_CONFIGURATION,
     'aliases' => array('caboose'),
   );
   return $items;
 }
-
 
 /**
  * Command argument complete callback.
@@ -49,28 +47,60 @@ function caboose_fresh_complete() {
 }
 
 /**
+ * Command argument complete callback.
+ */
+function caboose_new_complete() {
+  return array('values' => array('live', 'test', 'dev'));
+}
+
+/**
+ * Validate arguments.
+ */
+function drush_caboose_validate($env = DEFAULT_ENV) {
+  switch ($env) {
+    case 'live':
+    case 'test':
+    case 'dev':
+      // Just do it.
+      break;
+    default:
+    return drush_set_error('NOT_A_THING', dt("\nSay what? That's not a thing.\n"));
+      break;
+  }
+}
+
+
+/**
  * Command callback. Refresh your local environment.
  *
  * @param $env
  *   The dev/test/live environment to target.
- *
- * @param $alter
- *   Whether to take any action against the database.
  */
 function drush_caboose_fresh($env = DEFAULT_ENV) {
-  drush_print("  _     _   _       __             _                         ");
-  drush_print(" | |___| |_( )___  / _|_ _ ___ ___| |_  ___ _ _    _  _ _ __ ");
-  drush_print(" | / -_)  _|/(_-< |  _| '_/ -_|_-<| ' \/ -_) ' \\  | || | '_ \\");
-  drush_print(" |_\___|\\__| /__/ |_| |_| \\___/__/|_||_\\___|_||_|  \\_,_| .__/");
-  drush_print("                                                       |_|   ");
-  drush_print("      o o  o   o  ~~  ~~ ~                                   _____");
-  drush_print("    o     _____         ________________ ________________ ___|_=_|_()__");
-  drush_print("  .][_mm__|[]| ,===___ ||              | |              | |          |");
-  drush_print(" >(_______|__|_|_GBRR_]_|              |_|              |_|          |_|");
-  drush_print(" _/oo-OOOO-oo' !oo!!oo!=`!o!o!----!o!o!'=`!o!o!----!o!o!'=`!o!o--o!o!'");
-  drush_print("=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=");
-  drush_print("");
+  _caboose_graphics('intro');
 
+  // Get your data onto this environment.
+  _caboose_install($env);
+
+  // Kick up to a higher bootstrap level for altering the install.
+  drush_bootstrap(DRUSH_BOOTSTRAP_DRUPAL_FULL);
+
+  // Shape up the install how you like it.
+  _caboose_freshenup($env);
+
+  _caboose_graphics('outro');
+  return TRUE;
+}
+
+
+/**
+ * Abstracted functions...
+ */
+
+/**
+ * Run through freshening up steps.
+ */
+function _caboose_install($env) {
   // Sanity checking.
   if (!function_exists('terminus_drush_command')) {
     return drush_set_error('DRUSH_CABOOSE_NO_TERMINUM', 'Terminus not available.');
@@ -119,19 +149,23 @@ function drush_caboose_fresh($env = DEFAULT_ENV) {
   shell_exec('gunzip ' . $path);
   $path = strstr($path, '.gz', TRUE);
 
-  drush_print("Overwriting database manually.");
+  drush_print("Overwriting database.");
   // Drop the whole DB to get started fresh.
   $db_spec = _drush_sql_get_db_spec();
-  shell_exec(_drush_sql_connect() . ' -e "DROP DATABASE ' . $db_spec['database'] . '"');
-  shell_exec(_drush_sql_connect() . ' -e "CREATE DATABASE ' . $db_spec['database'] . '"');
+  shell_exec(_drush_sql_connect() . ' -e "DROP DATABASE ' . $db_spec['database'] . '; CREATE DATABASE ' . $db_spec['database'] . '"');
   // Avoid PHP based import for memory reasons.
   shell_exec(_drush_sql_connect() . ' < ' . $path);
-
-  drush_print("Database load complete.\n");
   drush_delete_dir($path);
 
+  drush_print("Database load complete.\n");
+}
+
+/**
+ * Run through steps to alter the data how you want.
+ */
+function _caboose_freshenup($env) {
   // Sanitize the local data for security.
-  drush_print("Grab settings...\n");
+  drush_print("Grabing settings...\n");
   if (file_exists(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'settings.inc')) {
     require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'settings.inc');
 
@@ -162,16 +196,16 @@ function drush_caboose_fresh($env = DEFAULT_ENV) {
       // Legacy approach.
       //$result = drush_invoke_process($target_site, 'sql-query', array($query), $options, $backend_options);
     }
-    
+
     // Account details.
     drush_print("Overwriting account data.\n");
     $query = "UPDATE users SET mail = CONCAT(PASSWORD(mail), '$email_domain'), pass = 'password', init = CONCAT(PASSWORD(init), '$email_domain')";
     shell_exec(_drush_sql_connect() . ' -e "' . $query . '"');
-    
+
     // Admin password.
     $user = user_load(1);
     user_save($user, array('pass' => $admin_pass));
-    
+
   }
 
   // Optional local changes include.
@@ -183,8 +217,36 @@ function drush_caboose_fresh($env = DEFAULT_ENV) {
   drush_print("Done. Clearing cache.\n");
   // @todo Might be nice to clear the Drush cache.
   cache_clear_all();
+}
 
-  $end_graphic = <<<EOD
+
+/**
+ * Draw cute stuff.
+ */
+function _caboose_graphics($stage) {
+  switch ($stage) {
+    case 'intro':
+
+      $graphic = <<<EOD
+  _     _   _       __             _                         
+ | |___| |_( )___  / _|_ _ ___ ___| |_  ___ _ _    _  _ _ __ 
+ | / -_)  _|/(_-< |  _| '_/ -_|_-<| ' \/ -_) ' \\  | || | '_ \\
+ |_\___|\\__| /__/ |_| |_| \\___/__/|_||_\\___|_||_|  \\_,_| .__/
+                                                       |_|   
+      o o  o   o  ~~  ~~ ~                                   _____
+    o     _____         ________________ ________________ ___|_=_|_()__
+  .][_mm__|[]| ,===___ ||   PANTEON    | |   TERMINUS   | | caboose  |
+ >(_______|__|_|______]_|______________|_|______________|_|__________|_|
+ _/oo-OOOO-oo' !oo!!oo!=`!o!o!----!o!o!'=`!o!o!----!o!o!'=`!o!o--o!o!'
+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
+EOD;
+
+      break;
+
+    case 'outro':
+
+      $graphic = <<<EOD
                                           ;;;          
                                         ;f;ff;         
                                  ;tf;  ;fiffff;        
@@ -222,21 +284,14 @@ function drush_caboose_fresh($env = DEFAULT_ENV) {
                         GGGGGGKKKKEGG                  
 
                   <<< Refresh complete >>>
+    
 EOD;
-  drush_print($end_graphic . "\n\n");
 
-  return TRUE;
-}
-
-function drush_caboose_validate($env = DEFAULT_ENV) {
-  switch ($env) {
-    case 'live':
-    case 'test':
-    case 'dev':
-      // Just do it.
       break;
+
     default:
-    return drush_set_error('NOT_A_THING', dt("\nSay what? That's not a thing.\n"));
-      break;
+      $graphic = '';
   }
+  
+  drush_print($graphic . "\n");
 }
