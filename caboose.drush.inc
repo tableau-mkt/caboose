@@ -80,7 +80,7 @@ function drush_caboose_fresh($env = DEFAULT_ENV) {
   _caboose_graphics('intro');
 
   // Get your data onto this environment.
-  _caboose_install($env);
+  //_caboose_install($env);
 
   // Kick up to a higher bootstrap level for altering the install.
   drush_bootstrap(DRUSH_BOOTSTRAP_DRUPAL_FULL);
@@ -182,6 +182,9 @@ function _caboose_freshenup($env) {
       module_enable($modules_enable);
     }
   }
+  else {
+    drush_print('No local module settings found. Did you copy that file correctly?');
+  }
 
   // Sanitize the local data for security.
   drush_print("Sanitizing local data...\n");
@@ -199,7 +202,14 @@ function _caboose_freshenup($env) {
 
     // Account details.
     drush_print("Overwriting account data.\n");
-    $query = "UPDATE users SET mail = CONCAT(PASSWORD(mail), '$email_domain'), pass = 'password', init = CONCAT(PASSWORD(init), '$email_domain')";
+    // Leave some accounts alone.
+    if (isset($unaltered_accounts)) {
+      $accounts = array_map(function($value) {
+        return '\'' . $value . '\'';
+      }, $unaltered_accounts);
+      $where = 'WHERE mail <> ' . implode(' AND mail <> ', $accounts);
+    }
+    $query = "UPDATE users SET mail = CONCAT(PASSWORD(mail), '$email_domain'), pass = 'password', init = CONCAT(PASSWORD(init), '$email_domain') $where";
     shell_exec(_drush_sql_connect() . ' -e "' . $query . '"');
 
     // Admin password.
@@ -207,11 +217,17 @@ function _caboose_freshenup($env) {
     user_save($user, array('pass' => $admin_pass));
 
   }
+  else {
+    drush_print('No sanitize steps found. You should really do that.');
+  }
 
   // Optional local changes include.
   drush_print("Running custom commands...\n");
   if (file_exists(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'optional.inc')) {
     require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'optional.inc');
+  }
+  else {
+    drush_print('FYI: No custom steps found.');
   }
 
   drush_print("Done. Clearing cache.\n");

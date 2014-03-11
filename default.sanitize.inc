@@ -16,3 +16,9 @@ $sanitize_fields = array(
 // Accounts.
 $email_domain = '@example.com';
 $admin_pass   = 'password';
+
+// Don't touch these!
+$unaltered_accounts = array(
+  'me@example.com',
+  'you@example.com',
+);
