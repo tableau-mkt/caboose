@@ -165,7 +165,7 @@ function _caboose_install($env) {
  */
 function _caboose_freshenup($env) {
   // Enable and disable modules.
-  drush_print("Grabing settings...\n");
+  drush_print("Grabbing settings...\n");
   if (file_exists(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'settings.inc')) {
     require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'settings.inc');
 
@@ -251,7 +251,7 @@ function _caboose_graphics($stage) {
                                                        |_|   
       o o  o   o  ~~  ~~ ~                                   _____
     o     _____         ________________ ________________ ___|_=_|_()__
-  .][_mm__|[]| ,===___ ||   PANTEON    | |   TERMINUS   | | caboose  |
+  .][_mm__|[]| ,===___ ||   PANTHEON   | |   TERMINUS   | | caboose  |
  >(_______|__|_|______]_|______________|_|______________|_|__________|_|
  _/oo-OOOO-oo' !oo!!oo!=`!o!o!----!o!o!'=`!o!o!----!o!o!'=`!o!o--o!o!'
 =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
