@@ -80,7 +80,7 @@ function drush_caboose_fresh($env = DEFAULT_ENV) {
   _caboose_graphics('intro');
 
   // Get your data onto this environment.
-  //_caboose_install($env);
+  _caboose_install($env);
 
   // Kick up to a higher bootstrap level for altering the install.
   drush_bootstrap(DRUSH_BOOTSTRAP_DRUPAL_FULL);
