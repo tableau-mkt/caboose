@@ -9,7 +9,17 @@ $modules = array(
   'update',
   'styleguide',
   'livejs',
+  'forminspect',
+  'module_builder',
+  'project_src',
 );
 if (!empty($modules)) {
   module_enable($modules);
 }
+
+// Update permissions.
+drush_print("Allowing anonymous users to use Devel.\n");
+$query_auth = "INSERT INTO role_permission (rid, permission, module) VALUES (2, 'access devel information', 'devel')";
+shell_exec(_drush_sql_connect() . ' -e "' . $query_auth . '"');
+$query_anon = "INSERT INTO role_permission (rid, permission, module) VALUES (1, 'access devel information', 'devel')";
+shell_exec(_drush_sql_connect() . ' -e "' . $query_anon . '"');
