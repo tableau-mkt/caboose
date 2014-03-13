@@ -25,9 +25,9 @@ function caboose_drush_command() {
   $items['caboose-fresh'] = array(
     'description' => 'Refresh your local development environment from Pantheon.',
     'examples' => array(
-      'drush caboose live' => 'Download and install the latest backup of production.',
-      'drush caboose test --untouched' => 'Download and install latest backup of test environment but do not alter the site.',
-      'drush caboose dev --now' => 'Create a backup of the dev environment, download and install.',
+      'drush caboose' => 'Download and install the latest backup of live production.',
+      'drush caboose test' => 'Download and install latest backup of test environment.',
+      'drush caboose dev' => 'Download and install latest backup of dev environment.',
     ),
     'arguments' => array(
       'environment' => 'Environment to grab database from.',
