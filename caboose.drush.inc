@@ -161,6 +161,8 @@ function _caboose_install($env) {
   drush_delete_dir($path);
 
   drush_print("Database load complete.\n");
+
+  return TRUE;
 }
 
 /**
