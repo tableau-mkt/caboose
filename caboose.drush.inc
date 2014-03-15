@@ -87,7 +87,6 @@ function drush_caboose_fresh($env = DEFAULT_ENV) {
 
     // Shape up the install how you like it.
     if (_caboose_freshenup($env)) {
-
       _caboose_graphics('outro');
     }
 
@@ -238,6 +237,8 @@ function _caboose_freshenup($env) {
   drush_print("Done. Clearing cache.\n");
   // @todo Might be nice to clear the Drush cache.
   cache_clear_all();
+
+  return TRUE;
 }
 
 
