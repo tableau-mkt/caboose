@@ -14,5 +14,7 @@ $modules_disable = array(
 
 $modules_enable = array(
   'stage_file_proxy',
-  'simpletest'
+  'simpletest',
+  'features_plumber',
+  'advanced_help',
 );
