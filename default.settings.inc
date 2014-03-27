@@ -9,7 +9,7 @@
 $modules_disable = array(
   'redis',
   'tableau_user_profile_sync',
-  'new_relic_rubicon',
+  'new_relic_insights',
 );
 
 $modules_enable = array(
@@ -17,4 +17,5 @@ $modules_enable = array(
   'simpletest',
   'features_plumber',
   'advanced_help',
+  'update',
 );

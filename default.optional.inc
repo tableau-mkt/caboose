@@ -6,12 +6,11 @@ $modules = array(
   'devel',
   'coder',
   'coder_review',
-  'update',
   'styleguide',
-  'livejs',
   'forminspect',
   'module_builder',
   'project_src',
+  'search_krumo',
 );
 if (!empty($modules)) {
   module_enable($modules);
