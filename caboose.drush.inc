@@ -82,9 +82,6 @@ function drush_caboose_fresh($env = DEFAULT_ENV) {
   // Get your data onto this environment.
   if (_caboose_install($env)) {
 
-    // Kick up to a higher bootstrap level for altering the install.
-    drush_bootstrap(DRUSH_BOOTSTRAP_DRUPAL_FULL);
-
     // Shape up the install how you like it.
     if (_caboose_freshenup($env)) {
       _caboose_graphics('outro');
@@ -103,6 +100,7 @@ function drush_caboose_fresh($env = DEFAULT_ENV) {
  * Run through freshening up steps.
  */
 function _caboose_install($env) {
+
   // Sanity checking.
   if (!function_exists('terminus_drush_command')) {
     return drush_set_error('DRUSH_CABOOSE_NO_TERMINUM', 'Terminus not available.');
@@ -133,7 +131,7 @@ function _caboose_install($env) {
   $result = terminus_api_backup_download_url($site_uuid, $env, $bucket, 'database');
   $data = json_decode($result['json']);
   $filename = strstr(basename($data->url), '?', '_');
-  $cache_duration = 86400*365;
+  $cache_duration = 86400 * 365;
 
   $path = _drush_download_file($data->url, $destination . DIRECTORY_SEPARATOR . $filename, $cache_duration);
 
@@ -168,6 +166,10 @@ function _caboose_install($env) {
  * Run through steps to alter the data how you want.
  */
 function _caboose_freshenup($env) {
+
+  // Kick up to a higher bootstrap level for altering the install.
+  drush_bootstrap(DRUSH_BOOTSTRAP_DRUPAL_FULL);
+
   // Enable and disable modules.
   drush_print("Grabbing settings...\n");
   if (file_exists(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'settings.inc')) {
