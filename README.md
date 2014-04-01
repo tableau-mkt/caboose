@@ -20,3 +20,7 @@ __Basic examples:__
  * ```drush caboose dev```
 
 Default environment is live.
+
+__Notes:__
+ * Be sure to login to Terminus via the ```drush pauth``` command.
+ * If you haven't used other Terminus commands, you'll likely need to refresh aliases with the ```drush paliases`` command.

@@ -103,8 +103,9 @@ function _caboose_install($env) {
 
   // Sanity checking.
   if (!function_exists('terminus_drush_command')) {
-    return drush_set_error('DRUSH_CABOOSE_NO_TERMINUM', 'Terminus not available.');
+    return drush_set_error('DRUSH_CABOOSE_NO_TERMINUS', 'Terminus not available.');
   }
+
   if (variable_get('caboose_pantheon_uuid', FALSE)) {
     $site_uuid = variable_get('caboose_pantheon_uuid', NULL);
   }
