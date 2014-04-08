@@ -13,7 +13,7 @@ $modules = array(
   'search_krumo',
 );
 if (!empty($modules)) {
-  module_enable($modules);
+  module_enable($modules, TRUE);
 }
 
 // Update permissions.

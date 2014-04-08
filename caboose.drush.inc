@@ -178,7 +178,7 @@ function _caboose_freshenup($env) {
 
     if (isset($modules_disable) && count($modules_disable) > 0) {
       drush_print("Disabling modules.\n");
-      module_disable($modules_disable);
+      module_disable($modules_disable, TRUE);
     }
 
     drush_print("Running updates...");
@@ -186,7 +186,7 @@ function _caboose_freshenup($env) {
 
     if (isset($modules_enable) && count($modules_enable) > 0) {
       drush_print("\nEnabling modules.\n");
-      module_enable($modules_enable);
+      module_enable($modules_enable, TRUE);
     }
   }
   else {
@@ -225,16 +225,16 @@ function _caboose_freshenup($env) {
 
   }
   else {
-    drush_print('No sanitize steps found. You should really do that.');
+    drush_print('No sanitization steps found. You should really do that.');
   }
 
   // Optional local changes include.
-  drush_print("Running custom commands...\n");
   if (file_exists(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'optional.inc')) {
+    drush_print("Running custom commands...\n");
     require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'optional.inc');
   }
   else {
-    drush_print('FYI: No custom steps found.');
+    drush_print('FYI: No custom steps found.\n');
   }
 
   drush_print("Done. Clearing cache.\n");
