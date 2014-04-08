@@ -156,26 +156,19 @@ function _caboose_install($env) {
   drush_print("Download was successful. It's here...");
   drush_print("$path\n");
 
-  drush_print("Extracting backup.\n");
-  // This seems insane, but it won't work without.
-  // NOTE: For some reason this is not necessary within Terminus.
-  ini_set('memory_limit', '2048M');
-  shell_exec('gunzip ' . $path);
-  $path = strstr($path, '.gz', TRUE);
-
   drush_print("Overwriting database.");
   // Drop the whole DB to get started fresh.
   $db_spec = _drush_sql_get_db_spec();
   shell_exec(_drush_sql_connect() . ' -e "DROP DATABASE ' . $db_spec['database'] . '; CREATE DATABASE ' . $db_spec['database'] . '"');
   // If pv command exists, use it to give an import progress bar
   if (command_exists('pv')) {
-    $import_cmd = "pv $path | " . _drush_sql_connect();
+    $import_cmd = "pv $path | gzcat | " . _drush_sql_connect();
   }
   else {
-    $import_cmd = _drush_sql_connect() . ' < ' . $path;
+    $import_cmd = "gzcat $path | " . _drush_sql_connect();
   }
-  // Import the SQL file, using shell_exec to avoid PHP based import (for memory reasons).
-  shell_exec($import_cmd);
+  // Import the SQL file, using system to avoid PHP based import (for memory reasons).
+  system($import_cmd);
   drush_delete_dir($path);
 
   drush_print("Database load complete.\n");
