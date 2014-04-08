@@ -103,8 +103,9 @@ function drush_caboose_fresh($env = DEFAULT_ENV) {
  * @return boolean      command exists on the system
  */
 function command_exists($cmd) {
-    $returnVal = shell_exec("which $cmd");
-    return (empty($returnVal) ? false : true);
+  $returnVal = null;
+  exec("which $cmd", $output, $returnVal);
+  return $returnVal === 0;
 }
 
 
