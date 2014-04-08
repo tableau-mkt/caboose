@@ -96,6 +96,18 @@ function drush_caboose_fresh($env = DEFAULT_ENV) {
  * Abstracted functions...
  */
 
+
+/**
+ * Check if a system command exists
+ * @param  string $cmd name of command to check for
+ * @return boolean      command exists on the system
+ */
+function command_exists($cmd) {
+    $returnVal = shell_exec("which $cmd");
+    return (empty($returnVal) ? false : true);
+}
+
+
 /**
  * Run through freshening up steps.
  */
@@ -154,8 +166,15 @@ function _caboose_install($env) {
   // Drop the whole DB to get started fresh.
   $db_spec = _drush_sql_get_db_spec();
   shell_exec(_drush_sql_connect() . ' -e "DROP DATABASE ' . $db_spec['database'] . '; CREATE DATABASE ' . $db_spec['database'] . '"');
-  // Avoid PHP based import for memory reasons.
-  shell_exec(_drush_sql_connect() . ' < ' . $path);
+  // If pv command exists, use it to give an import progress bar
+  if (command_exists('pv')) {
+    $import_cmd = "pv $path | " . _drush_sql_connect();
+  }
+  else {
+    $import_cmd = _drush_sql_connect() . ' < ' . $path;
+  }
+  // Import the SQL file, using shell_exec to avoid PHP based import (for memory reasons).
+  shell_exec($import_cmd);
   drush_delete_dir($path);
 
   drush_print("Database load complete.\n");
