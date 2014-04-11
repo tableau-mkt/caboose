@@ -77,35 +77,22 @@ function drush_caboose_validate($env = DEFAULT_ENV) {
  *   The dev/test/live environment to target.
  */
 function drush_caboose_fresh($env = DEFAULT_ENV) {
-  _caboose_graphics('intro');
+  _caboose_bling('intro');
 
+/*
   // Get your data onto this environment.
   if (_caboose_install($env)) {
 
     // Shape up the install how you like it.
     if (_caboose_freshenup($env)) {
-      _caboose_graphics('outro');
+      _caboose_bling('outro');
     }
 
   }
+*/
+_caboose_bling('outro');
+
   return TRUE;
-}
-
-
-/**
- * Abstracted functions...
- */
-
-
-/**
- * Check if a system command exists
- * @param  string $cmd name of command to check for
- * @return boolean      command exists on the system
- */
-function command_exists($cmd) {
-  $returnVal = null;
-  exec("which $cmd", $output, $returnVal);
-  return $returnVal === 0;
 }
 
 
@@ -259,12 +246,33 @@ function _caboose_freshenup($env) {
 
 
 /**
- * Draw cute stuff.
+ * Abstracted functions...
  */
-function _caboose_graphics($stage) {
+
+
+/**
+ * Check if a system command exists.
+ * @param  string $cmd
+ *   Name of command to check for.
+ * @return boolean
+ *   Result of if command exists on the system.
+ */
+function command_exists($cmd) {
+  $returnVal = null;
+  exec("which $cmd", $output, $returnVal);
+  return $returnVal === 0;
+}
+
+
+/**
+ * Do cute stuff.
+ * @param string $stage
+ *   Place in the process.
+ */
+function _caboose_bling($stage) {
   switch ($stage) {
     case 'intro':
-
+      $message = 'All aboard.';
       $graphic = <<<EOD
   _     _   _       __             _                         
  | |___| |_( )___  / _|_ _ ___ ___| |_  ___ _ _    _  _ _ __ 
@@ -279,11 +287,10 @@ function _caboose_graphics($stage) {
 =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
 EOD;
-
       break;
 
     case 'outro':
-
+      $message = 'The train is in the station.';
       $graphic = <<<EOD
                                           ;;;          
                                         ;f;ff;         
@@ -324,12 +331,17 @@ EOD;
                   <<< Refresh complete >>>
     
 EOD;
-
       break;
 
     default:
       $graphic = '';
   }
-  
+
   drush_print($graphic . "\n");
+
+  if (command_exists('say')) {
+    $say_cmd = "say " . $message;
+    system($say_cmd);
+  }
+
 }
