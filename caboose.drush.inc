@@ -79,7 +79,6 @@ function drush_caboose_validate($env = DEFAULT_ENV) {
 function drush_caboose_fresh($env = DEFAULT_ENV) {
   _caboose_bling('intro');
 
-/*
   // Get your data onto this environment.
   if (_caboose_install($env)) {
 
@@ -89,8 +88,6 @@ function drush_caboose_fresh($env = DEFAULT_ENV) {
     }
 
   }
-*/
-_caboose_bling('outro');
 
   return TRUE;
 }
