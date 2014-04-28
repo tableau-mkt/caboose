@@ -271,11 +271,11 @@ function _caboose_bling($stage) {
     case 'intro':
       $message = 'All aboard.';
       $graphic = <<<EOD
-  _     _   _       __             _                         
- | |___| |_( )___  / _|_ _ ___ ___| |_  ___ _ _    _  _ _ __ 
+  _     _   _       __             _
+ | |___| |_( )___  / _|_ _ ___ ___| |_  ___ _ _    _  _ _ __
  | / -_)  _|/(_-< |  _| '_/ -_|_-<| ' \/ -_) ' \\  | || | '_ \\
  |_\___|\\__| /__/ |_| |_| \\___/__/|_||_\\___|_||_|  \\_,_| .__/
-                                                       |_|   
+                                                       |_|
       o o  o   o  ~~  ~~ ~                                   _____
     o     _____         ________________ ________________ ___|_=_|_()__
   .][_mm__|[]| ,===___ ||   PANTHEON   | |   TERMINUS   | | caboose  |
@@ -289,44 +289,38 @@ EOD;
     case 'outro':
       $message = 'The train is in the station.';
       $graphic = <<<EOD
-                                          ;;;          
-                                        ;f;ff;         
-                                 ;tf;  ;fiffff;        
-                               ;ffffff fffffff;        
-     Friendship is magic!      fffffff;fffffff;        
-                              ;fffGEffffj;fffjff       
-                              jffLKKGff;fffffffjtff;   
-                             ;fffKKKGffff;ffffjfffff;  
-                             ;fffKKKDKKKKKGffffffffff  
-                             ;ffGKKKEKKKKKKKfffffffff; 
-               ;             ;fiGKKKKKKKKKKKKf;  ;fff; 
-             ;ffff;          ;ffGKKKKKKKKKKKKG    fff; 
-            jffffffi          fffffGKKK  KKKKK    fff  
-       ;;  ;fffiff;fj      ;ffffffffKt####KKKK  ;fff;  
-     ;ffff ;fifffffff;     jffffffffKD##WtiKKK ;ffi;   
-    ;ffffffjffffffffff;   ;ffffffffjKK###  KKK ;f;;;   
-    ;ffffffffffffffff;;   ;ffffff;jiKK###  KKD  ;;     
-    ffffffffifffff;ffff   ;fff;ftfff;.W    KKG         
-    fffjfff;tfffff;;fff   ;ffffffffff;K    KKG         
-    fffffffffffffff ;f;    fffjfffffffKKKKKKKKG        
-    ;fjffffffffffff  f;    ;ffffffffffKKKKKDKG         
-    ;f;fff;ffffffff  ;;      ; fifffffGKKKKEG          
-     fifffffifffff;  ;tGGGG   ;fffffftK                
-   ;fffffffff;fffj   GKKKKKKG  fff;jEKK                
-  ;ffff;fff;ffff;   GKWKKKKKKGGifff;KKKG               
-  ffffffffffff;     KKKKKKKKKKKEKKjfEKKG               
-  tfffffftfffft    GKDDKKKKKKKKKGffiKKKG               
-  ;f;;fff;fffft    GKEDKKKGKKKKKKKKKKKK                
-  ;iffffffffff;    GKKKKKKKKKKKKKKKKKKKGG              
-; ifffffffffff     GKKKKKKGGGKKKKKKKKKGKK              
-; ;ffffffffff;     GKKKKKKKKKDKKGGKKKKKGK              
-;f;;ft;ffff;;       GGGKKKKKKKKKKKKKKKKKG              
- fffff  ;;         GKKKKKKKKKKKKKKKKKKKG               
-  ;ff;             GGGGGKKKKGKKKKKKKKKG                
-                        GGGGGGKKKKEGG                  
-
+             LLftttttftf
+            fttttLttffttf fttttttttt
+    tttfLLtttffftftffLftLLtl:lttttttt            +----------------------+
+ ttttttttttttttftflllllLftl::i;iftttfC           | Friendship is magic! |
+ttttff   ftttLi;:::::::::;;::;i:iffLLf           +----------------------+
+tttf        i:::::::::::::::;;i::ltfft
+ ttt        ::::::::;;::;::::::::lfLtf
+   fttf    :::::;l@..CC@L@;::CffffLfL
+     ff    ::::;@. lf@@ .@i:Ltttttttttttf                  ffffff
+            :::;@ iL@@L  i;;Ltttttttttttff          LtffLffffLLffttf
+            ;::;@ lL@@@@@i::;LLfftttttffftf       ffLtttttttttttfLttf
+            :::::;..CLL;::;fttttttttfLftttf     fffttffffffttttttfLtf
+           :::i::::::::::;ftttftttttfLtttf     tLtf    ftttttttttfLtLCffttf
+              ::::::;;   CtttttttLfLLLLL      tC      ftttttttttfLtfttttttttfL
+                        ;;LttttttfLttC::::t;;:i      ftttttttttffLLLLffttttttfC
+                        :::;LfffLfttfC:filft;llf      ftttttttttttttttfLfttttf
+                        :::::CfffLCi::::f;f:lli;;       fttftttttftttttfftttf
+                         :::;CffLC;:::::;;f:t:::;        fLtttttftttttfLftf
+                         ;::::::::::::;:::;;i::;        ttttttttttttffffL
+                            i;:::;;;;;;;l:::::;        tttttfffffLLfftttttf
+                            i;:::;     iii;:::::;      fttttttfLftttttttttt
+                            i;::::i       ;i;:::::;     ftttttffftftttfttf
+                            i;::::i        ;;;:::::      ffttfLLfttfttff
+                           ;l:::::;        ;;;l::::;            CLLfftff
+                           ;l:::::;        ;:;l;::::;          fttf
+                          :l::::::;        ::;l:::::;             ffttttf
+                         :;;::::::;        ::;;:::::;i
+                        :;;::::::;;       ::;:::::::;
+                         :::::::;;          :::::::;;
+ 
                   <<< Refresh complete >>>
-    
+
 EOD;
       break;
 
