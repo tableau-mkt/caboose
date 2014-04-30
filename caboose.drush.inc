@@ -232,6 +232,10 @@ function _caboose_freshenup($env) {
   if (file_exists(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'optional.inc')) {
     drush_print("Running custom commands...\n");
     require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'optional.inc');
+
+    if (isset($optional_modules_enable) && count($optional_modules_enable) > 0) {
+      module_enable($optional_modules_enable, TRUE);
+    }
   }
   else {
     drush_print('FYI: No custom steps found.\n');

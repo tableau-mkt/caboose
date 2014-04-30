@@ -2,7 +2,7 @@
 
 // Install your favorite development modules.
 drush_print("Enabling custom preference modules.\n");
-$modules = array(
+$optional_modules_enable = array(
   'devel',
   'coder',
   'coder_review',
@@ -12,9 +12,6 @@ $modules = array(
   'project_src',
   'search_krumo',
 );
-if (!empty($modules)) {
-  module_enable($modules, TRUE);
-}
 
 // Update permissions.
 drush_print("Allowing anonymous users to use Devel.\n");
