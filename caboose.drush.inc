@@ -77,6 +77,7 @@ function drush_caboose_validate($env = DEFAULT_ENV) {
  *   The dev/test/live environment to target.
  */
 function drush_caboose_fresh($env = DEFAULT_ENV) {
+  _caboose_bling('pre-intro');
   _caboose_bling('intro');
 
   // Get your data onto this environment.
@@ -262,28 +263,78 @@ function command_exists($cmd) {
 
 
 /**
+ * Utility function to print and optionally overwrite (useful for animations)
+ * @param  string $str
+ *   A string to print
+ * @param  boolean $overwrite
+ *   Overwrite previous lines
+ */
+function _caboose_print($str, $overwrite = TRUE) {
+  if ($overwrite) {
+    $num_lines = substr_count($str, "\n");
+    print chr(27) . "[" . $num_lines . "A" . // Set cursor up x lines
+      chr(27) . "[0G" ; // Set cursor to first column
+
+  }
+  print $str;
+}
+
+
+/**
  * Do cute stuff.
  * @param string $stage
  *   Place in the process.
  */
-function _caboose_bling($stage) {
+function _caboose_bling($stage, $frames = 30, $microseconds = 100000) {
   switch ($stage) {
-    case 'intro':
+    case 'pre-intro':
       $message = 'All aboard.';
       $graphic = <<<EOD
   _     _   _       __             _
  | |___| |_( )___  / _|_ _ ___ ___| |_  ___ _ _    _  _ _ __
- | / -_)  _|/(_-< |  _| '_/ -_|_-<| ' \/ -_) ' \\  | || | '_ \\
- |_\___|\\__| /__/ |_| |_| \\___/__/|_||_\\___|_||_|  \\_,_| .__/
+ | / -_)  _|/(_-< |  _| '_/ -_|_-<| ' \/ -_) ' \  | || | '_ \
+ |_\___|\__| /__/ |_| |_| \___/__/|_||_\___|_||_|  \_,_| .__/
                                                        |_|
-      o o  o   o  ~~  ~~ ~                                   _____
+EOD;
+      break;
+    case 'intro':
+      $graphic = array(
+<<<EOD
+      o o                                                    _____
+    o     _____         ________________ ________________ ___|_=_|_()__
+  .][_mm__|[]| ,===___ ||   PANTHEON   | |              | |          |
+ >(_______|__|_|______]_|______________|_|______________|_|__________|_|
+ _/oo-OOOO-oo' !oo!!oo!=`!o!o!----!o!o!'=`!o!o!----!o!o!'=`!o!o--o!o!'
+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+=
+EOD
+,
+<<<EOD
+      o  ~~ ~                                                _____
+    o     _____         ________________ ________________ ___|_=_|_()__
+  .][_mm__|[]| ,===___ ||   PANTHEON   | |   TERMINUS   | |          |
+ >(_______|__|_|______]_|______________|_|______________|_|__________|_|
+ _/oo-OOOO-oo' !oo!!oo!=`!o!o!----!o!o!'=`!o!o!----!o!o!'=`!o!o--o!o!'
++===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+
+EOD
+,
+<<<EOD
+      o o  ~~  ~~ ~                                          _____
     o     _____         ________________ ________________ ___|_=_|_()__
   .][_mm__|[]| ,===___ ||   PANTHEON   | |   TERMINUS   | | caboose  |
  >(_______|__|_|______]_|______________|_|______________|_|__________|_|
  _/oo-OOOO-oo' !oo!!oo!=`!o!o!----!o!o!'=`!o!o!----!o!o!'=`!o!o--o!o!'
-=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
-
-EOD;
+=+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===
+EOD
+,
+<<<EOD
+      o o  o   o  ~~  ~~ ~                                   _____
+    o     _____         ________________ ________________ ___|_=_|_()__
+  .][_mm__|[]| ,===___ ||              | |              | |          |
+ >(_______|__|_|______]_|______________|_|______________|_|__________|_|
+ _/oo-OOOO-oo' !oo!!oo!=`!o!o!----!o!o!'=`!o!o!----!o!o!'=`!o!o--o!o!'
+==+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+==
+EOD
+        );
       break;
 
     case 'outro':
@@ -318,7 +369,7 @@ tttf        i:::::::::::::::;;i::ltfft
                          :;;::::::;        ::;;:::::;i
                         :;;::::::;;       ::;:::::::;
                          :::::::;;          :::::::;;
- 
+
                   <<< Refresh complete >>>
 
 EOD;
@@ -328,11 +379,24 @@ EOD;
       $graphic = '';
   }
 
-  drush_print($graphic . "\n");
+  if (is_array($graphic)) {
+    $overwrite = FALSE;
+    $frame = 0;
+    $count = count($graphic);
+    do {
+      _caboose_print($graphic[$frame % $count], $overwrite);
+      usleep($microseconds);
+      $overwrite = TRUE;
+    } while (++$frame <= $frames);
+    print "\n";
+  }
+  else {
+    drush_print($graphic . "\n");
+  }
 
   if (command_exists('say')) {
-    $say_cmd = "say " . $message;
-    system($say_cmd);
+    $say_cmd = "say $message > /dev/null 2>/dev/null &";
+    shell_exec($say_cmd);
   }
 
 }
