@@ -77,7 +77,6 @@ function drush_caboose_validate($env = DEFAULT_ENV) {
  *   The dev/test/live environment to target.
  */
 function drush_caboose_fresh($env = DEFAULT_ENV) {
-  _caboose_bling('pre-intro');
   _caboose_bling('intro');
 
   // Get your data onto this environment.
@@ -130,9 +129,8 @@ function _caboose_install($env) {
   $result = terminus_api_backup_download_url($site_uuid, $env, $bucket, 'database');
   $data = json_decode($result['json']);
   $filename = strstr(basename($data->url), '?', '_');
-  $cache_duration = 86400 * 365;
 
-  $path = _drush_download_file($data->url, $destination . DIRECTORY_SEPARATOR . $filename, $cache_duration);
+  $path = _caboose_download_file($data->url, $destination . DIRECTORY_SEPARATOR . $filename, TRUE);
 
   if (!$path && !drush_get_context('DRUSH_SIMULATE')) {
     return drush_set_error('DRUSH_PSITE_DOWNLOAD_FAILED', 'Unable to download ' . $filename . ' to ' . $destination . ' from ' . $data->url);
@@ -281,13 +279,92 @@ function _caboose_print($str, $overwrite = TRUE) {
 
 
 /**
+ * Based on drush_shell_exec, but backgrounds the process and returns the PID
+ *
+ * Executes a shell command. Output is only printed if in verbose mode. Output is stored and can be retrieved using drush_shell_exec_output(). If in simulation mode, no action is taken.
+ *
+ * @param string $cmd
+ *   The command to execute. May include placeholders used for sprintf.
+ * @param  ...
+ *   Values for the placeholders specified in $cmd. Each of these will be passed through escapeshellarg() to ensure they are safe to use on the command line.
+ * @return boolean
+ *   TRUE on success, FALSE on failure
+ */
+function _caboose_shell_exec($cmd) {
+  $args = func_get_args();
+
+  //do not change the command itself, just the parameters.
+  for ($x = 1; $x < sizeof($args); $x++) {
+    $args[$x] = escapeshellarg($args[$x]);
+  }
+  $command = call_user_func_array('sprintf', $args);
+
+  if (drush_get_context('DRUSH_VERBOSE') || drush_get_context('DRUSH_SIMULATE')) {
+    drush_log('Executing: ' . $command);
+  }
+
+  if (!drush_get_context('DRUSH_SIMULATE')) {
+    $pid = exec($command . ' > /dev/null 2>&1 & echo $!', $output, $result);
+
+    return ($result == 0) ? $pid : FALSE;
+  }
+}
+
+
+/**
+ * Based on drush_download_file, but instead calls _caboose_shell_exec
+ *
+ * @param string $url
+ *   The url of the file to download.
+ * @param string $destination
+ *   The name of the file to be saved, which may include the full path.
+ * @param boolean $overwrite
+ *   Overwrite any file thats already at the destination.
+ * @return string
+ *   The path to the downloaded file, or FALSE if the file could not be downloaded.
+ */
+function _caboose_download_file($url, $destination, $overwrite = TRUE) {
+  static $use_wget;
+  if ($use_wget === NULL) {
+    $use_wget = drush_shell_exec('which wget');
+  }
+
+  $destination_tmp = drush_tempnam('download_file');
+  if ($use_wget) {
+    $pid = _caboose_shell_exec("wget -q --timeout=30 -O %s %s", $destination_tmp, $url);
+  }
+  else {
+    $pid = _caboose_shell_exec("curl --fail -s -L --connect-timeout 30 -o %s %s", $destination_tmp, $url);
+  }
+
+  // Wait for the process to finish and animate some bling
+  _caboose_bling('working', $pid);
+
+  if (!drush_file_not_empty($destination_tmp) && $file = @file_get_contents($url)) {
+    @file_put_contents($destination_tmp, $file);
+  }
+  if (!drush_file_not_empty($destination_tmp)) {
+    // Download failed.
+    return FALSE;
+  }
+
+  drush_move_dir($destination_tmp, $destination, $overwrite);
+  return $destination;
+}
+
+
+/**
  * Do cute stuff.
  * @param string $stage
  *   Place in the process.
+ * @param integer
+ *   Optional process ID to watch
+ * @param integer
+ *   Number of microseconds to sleep during frames
  */
-function _caboose_bling($stage, $frames = 30, $microseconds = 100000) {
+function _caboose_bling($stage, $pid = NULL, $microseconds = 100000) {
   switch ($stage) {
-    case 'pre-intro':
+    case 'intro':
       $message = 'All aboard.';
       $graphic = <<<EOD
   _     _   _       __             _
@@ -297,7 +374,7 @@ function _caboose_bling($stage, $frames = 30, $microseconds = 100000) {
                                                        |_|
 EOD;
       break;
-    case 'intro':
+    case 'working':
       $graphic = array(
 <<<EOD
       o o                                                    _____
@@ -379,7 +456,7 @@ EOD;
       $graphic = '';
   }
 
-  if (is_array($graphic)) {
+  if (is_array($graphic) && isset($pid)) {
     $overwrite = FALSE;
     $frame = 0;
     $count = count($graphic);
@@ -387,7 +464,9 @@ EOD;
       _caboose_print($graphic[$frame % $count], $overwrite);
       usleep($microseconds);
       $overwrite = TRUE;
-    } while (++$frame <= $frames);
+      $frame++;
+      system("kill -0 $pid 2>/dev/null", $retval);
+    } while ($retval == 0);
     print "\n";
   }
   else {
