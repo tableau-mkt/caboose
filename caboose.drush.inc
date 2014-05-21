@@ -77,7 +77,11 @@ function drush_caboose_validate($env = DEFAULT_ENV) {
  *   The dev/test/live environment to target.
  */
 function drush_caboose_fresh($env = DEFAULT_ENV) {
-  _caboose_bling('intro');
+  if (file_exists(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'say.inc')) {
+    require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'say.inc');
+  }
+
+  _caboose_bling('intro', $message);
 
   // Get your data onto this environment.
   if (_caboose_install($env)) {
@@ -338,7 +342,7 @@ function _caboose_download_file($url, $destination, $overwrite = TRUE) {
   }
 
   // Wait for the process to finish and animate some bling
-  _caboose_bling('working', $pid);
+  _caboose_bling('working', NULL, $pid);
 
   if (!drush_file_not_empty($destination_tmp) && $file = @file_get_contents($url)) {
     @file_put_contents($destination_tmp, $file);
@@ -362,10 +366,12 @@ function _caboose_download_file($url, $destination, $overwrite = TRUE) {
  * @param integer
  *   Number of microseconds to sleep during frames
  */
-function _caboose_bling($stage, $pid = NULL, $microseconds = 100000) {
+function _caboose_bling($stage, $message = '', $pid = NULL, $microseconds = 100000) {
   switch ($stage) {
     case 'intro':
-      $message = 'All aboard.';
+      if (empty($message)) {
+        $message = 'All aboard.';
+      }
       $graphic = <<<EOD
   _     _   _       __             _
  | |___| |_( )___  / _|_ _ ___ ___| |_  ___ _ _    _  _ _ __
@@ -415,7 +421,9 @@ EOD
       break;
 
     case 'outro':
-      $message = 'The train is in the station.';
+      if (empty($message)) {
+        $message = 'The train is in the station.';
+      }
       $graphic = <<<EOD
              LLftttttftf
             fttttLttffttf fttttttttt
