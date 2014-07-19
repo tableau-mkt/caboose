@@ -16,12 +16,13 @@ Run command from site root.
 
 __Basic examples:__
  * ```drush caboose```
- * ```drush caboose test```
+ * ```drush caboose live```
  * ```drush caboose dev```
 
-Default environment is live.
+Default environment is test.
 
 __Notes:__
  * Be sure to login to Terminus via the ```drush pauth``` command.
  * If you haven't used other Terminus commands, you'll likely need to refresh aliases with the ```drush paliases`` command.
  * Progress indicator on mysql import requires [`pv`](http://www.ivarch.com/programs/pv.shtml) (`brew install pv`)
+ * Having `pcntl` functions allows handling interrupt signals (Ctrl+C). MAMP doesn't usually have these functions enabled.
