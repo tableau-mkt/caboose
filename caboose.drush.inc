@@ -126,11 +126,11 @@ function _caboose_lock($name, $lock = TRUE, $retry_minutes = 15) {
       drush_print("Lock could not be acquired. Will retry for $retry_minutes minutes.");
     }
     // Retry up to 15 minutes for a lock (60 seconds * 15 retries)
-    exec("lockfile -60 -r$retry_minutes $lock_file; trap 'rm -f $lock_file; exit' INT TERM EXIT", $output, $result);
+    exec("lockfile -60 -r$retry_minutes $lock_file; trap 'rm -f $lock_file; exit' INT TERM", $output, $result);
     return $result == 0;
   }
   else {
-    drush_delete_dir($lock_file);
+    unlink($lock_file);
     return TRUE;
   }
 }
@@ -155,8 +155,8 @@ function _caboose_query($query, $db_spec = NULL) {
  * Load staged version of database if it exists.
  */
 function _caboose_fast_install() {
-  // Attempt to acquire a db_fast lock.
-  $result = _caboose_lock('db_fast', TRUE);
+  // Attempt to acquire a db lock.
+  $result = _caboose_lock('db', TRUE);
 
   // Fail here if lock not acquired.
   if (!$result) {
@@ -175,6 +175,9 @@ function _caboose_fast_install() {
   $db_exists = is_array($result) && $result[0] == $source_db;
 
   if (!$db_exists) {
+    // Release db lock.
+    _caboose_lock('db', FALSE);
+
     return FALSE;
   }
 
@@ -195,8 +198,8 @@ function _caboose_fast_install() {
   // Drop source database since it should be "empty" now.
   _caboose_query("DROP DATABASE $source_db");
 
-  // Release db_fast lock.
-  _caboose_lock('db_fast', FALSE);
+  // Release db lock.
+  _caboose_lock('db', FALSE);
 
   drush_print("BOOM! Database import complete.");
 
