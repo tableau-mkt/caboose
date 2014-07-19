@@ -8,6 +8,10 @@
  */
 define('DEFAULT_ENV', 'test');
 
+if (function_exists('pcntl_signal')) {
+  pcntl_signal(SIGINT, '_caboose_sig_handler');
+}
+
 /**
  * Implements hook_drush_help().
  */
@@ -125,8 +129,13 @@ function _caboose_lock($name, $lock = TRUE, $retry_minutes = 15) {
     if (file_exists($lock_file)) {
       drush_print("Lock could not be acquired. Will retry for $retry_minutes minutes.");
     }
-    // Retry up to 15 minutes for a lock (60 seconds * 15 retries)
-    exec("lockfile -60 -r$retry_minutes $lock_file; trap 'rm -f $lock_file; exit' INT TERM", $output, $result);
+    // Keep trying to get a lock for given $retry_minutes.
+    $retries = $retry_minutes * 60;
+    $GLOBALS['caboose_lock_files'][] = $lock_file;
+    exec("lockfile -1 -r$retries $lock_file", $output, $result);
+    if (function_exists('pcntl_signal_dispatch')) {
+      pcntl_signal_dispatch();
+    }
     return $result == 0;
   }
   else {
@@ -449,10 +458,39 @@ function _caboose_shell_exec($cmd) {
   if (!drush_get_context('DRUSH_SIMULATE')) {
     $pid = exec($command . ' > /dev/null 2>&1 & echo $!', $output, $result);
 
+    if ($pid) {
+      $GLOBALS['caboose_pids'][] = $pid;
+    }
+
     return ($result == 0) ? $pid : FALSE;
   }
 }
 
+/**
+ * Teardown after interrupt signal.
+ */
+function _caboose_sig_handler($signo) {
+  drush_print("Signal caught ($signo).");
+  switch ($signo) {
+    case SIGINT:
+      drush_print("Removing locks and killing any downloads.");
+
+      if (isset($GLOBALS['caboose_lock_files'])) {
+        foreach (array_unique($GLOBALS['caboose_lock_files']) as $lock_file) {
+          unlink($lock_file);
+        }
+      }
+
+      if (isset($GLOBALS['caboose_pids'])) {
+        foreach ($GLOBALS['caboose_pids'] as $pid) {
+          posix_kill($pid, SIGTERM);
+        }
+      }
+
+      exit;
+      break;
+  }
+}
 
 /**
  * Based on drush_download_file, but instead calls _caboose_shell_exec
@@ -613,6 +651,9 @@ EOD;
       $overwrite = TRUE;
       $frame++;
       system("kill -0 $pid 2>/dev/null", $retval);
+      if (function_exists('pcntl_signal_dispatch')) {
+        pcntl_signal_dispatch();
+      }
     } while ($retval == 0);
     print "\n";
   }
