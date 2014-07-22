@@ -234,6 +234,7 @@ function _caboose_freshenup($env) {
     require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'optional.inc');
 
     if (isset($optional_modules_enable) && count($optional_modules_enable) > 0) {
+      drush_print("Enabling custom preference modules.\n");
       module_enable($optional_modules_enable, TRUE);
     }
   }
