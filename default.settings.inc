@@ -18,4 +18,5 @@ $modules_enable = array(
   'features_plumber',
   'advanced_help',
   'update',
+  'link_css',
 );
