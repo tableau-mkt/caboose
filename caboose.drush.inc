@@ -254,7 +254,6 @@ function _caboose_install($env, $db_stage = FALSE) {
   $bucket = terminus_latest_bucket($site_uuid, $env, 'database');
 
   drush_print('Downloading database from (' . $env . ') site backup.' . "\n");
-  $destination = drush_tempdir();
   $result = terminus_api_backup_download_url($site_uuid, $env, $bucket, 'database');
   $data = json_decode($result['json']);
 
@@ -262,10 +261,10 @@ function _caboose_install($env, $db_stage = FALSE) {
   $filename = strstr(basename($data->url), '?', TRUE);
 
   // Download the file.
-  $path = _caboose_download_file($data->url, $destination . DIRECTORY_SEPARATOR . $filename, TRUE);
+  $path = _caboose_download_file($data->url);
 
   if (!$path && !drush_get_context('DRUSH_SIMULATE')) {
-    return drush_set_error('DRUSH_PSITE_DOWNLOAD_FAILED', 'Unable to download ' . $filename . ' to ' . $destination . ' from ' . $data->url);
+    return drush_set_error('DRUSH_PSITE_DOWNLOAD_FAILED', 'Unable to download ' . $filename . ' from ' . $data->url);
   }
 
   drush_print("Download was successful. It's here...");
@@ -433,17 +432,20 @@ function _caboose_print($str, $overwrite = TRUE) {
  *
  * Executes a shell command. Output is only printed if in verbose mode. Output is stored and can be retrieved using drush_shell_exec_output(). If in simulation mode, no action is taken.
  *
+ * @param string $type
+ *   How to exec the command. One of 'fg' for foreground, 'bg' for background.
  * @param string $cmd
  *   The command to execute. May include placeholders used for sprintf.
  * @param  ...
  *   Values for the placeholders specified in $cmd. Each of these will be passed through escapeshellarg() to ensure they are safe to use on the command line.
- * @return boolean
- *   TRUE on success, FALSE on failure
+ * @return mixed
+ *   TRUE (or PID if $type is 'bg') on success, FALSE on failure
  */
-function _caboose_shell_exec($cmd) {
-  $args = func_get_args();
+function _caboose_exec($type, $cmd) {
+  // Get function arguments into an array, minus the first one
+  $args = array_slice(func_get_args(), 1);
 
-  //do not change the command itself, just the parameters.
+  // Do not change the command itself, just the parameters.
   for ($x = 1; $x < sizeof($args); $x++) {
     $args[$x] = escapeshellarg($args[$x]);
   }
@@ -456,13 +458,23 @@ function _caboose_shell_exec($cmd) {
   }
 
   if (!drush_get_context('DRUSH_SIMULATE')) {
-    $pid = exec($command . ' > /dev/null 2>&1 & echo $!', $output, $result);
+    if ($type == 'fg') {
+      system($command, $result);
 
-    if ($pid) {
-      $GLOBALS['caboose_pids'][] = $pid;
+      return $result == 0;
     }
+    elseif ($type == 'bg') {
+      $pid = exec($command . ' > /dev/null 2>&1 & echo $!', $output, $result);
 
-    return ($result == 0) ? $pid : FALSE;
+      if ($pid) {
+        $GLOBALS['caboose_pids'][] = $pid;
+      }
+
+      return ($result == 0) ? $pid : FALSE;
+    }
+    else {
+      return FALSE;
+    }
   }
 }
 
@@ -493,7 +505,7 @@ function _caboose_sig_handler($signo) {
 }
 
 /**
- * Based on drush_download_file, but instead calls _caboose_shell_exec
+ * Based on drush_download_file, but instead calls _caboose_exec
  *
  * @param string $url
  *   The url of the file to download.
@@ -505,14 +517,18 @@ function _caboose_download_file($url) {
   $destination_tmp_filename = basename($destination_tmp);
   $destination_tmp_dir = str_replace('/' . $destination_tmp_filename, '', $destination_tmp);
 
-  // Try with wget, curl, php ...
-  if (command_exists('wget')) {
+  // Try with aria2c, wget, curl, php ...
+  if (command_exists('aria2c')) {
+    drush_print("Downloading with aria2c.");
+    $pid = _caboose_exec('bg', "aria2c -x4 -q -d %s -o %s --auto-file-renaming=false --allow-overwrite=true --stop-with-process=%s --log=%s %s", $destination_tmp_dir, $destination_tmp_filename, getmypid(), '/tmp/caboose-aria2c.log', $url);
+  }
+  elseif (command_exists('wget')) {
     drush_print("Downloading with wget.");
-    $pid = _caboose_shell_exec("wget -q --timeout=30 -O %s %s", $destination_tmp, $url);
+    $pid = _caboose_exec('bg', "wget -q --timeout=30 -O %s %s", $destination_tmp, $url);
   }
   elseif (command_exists('curl')) {
     drush_print("Downloading with curl.");
-    $pid = _caboose_shell_exec("curl --fail -s -L --connect-timeout 30 -o %s %s", $destination_tmp, $url);
+    $pid = _caboose_exec('bg', "curl --fail -s -L --connect-timeout 30 -o %s %s", $destination_tmp, $url);
   }
   // Last resort, use php.
   else {
