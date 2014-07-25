@@ -520,7 +520,7 @@ function _caboose_download_file($url) {
   // Try with aria2c, wget, curl, php ...
   if (command_exists('aria2c')) {
     drush_print("Downloading with aria2c.");
-    $pid = _caboose_exec('bg', "aria2c -x4 -q -d %s -o %s --auto-file-renaming=false --allow-overwrite=true --stop-with-process=%s --log=%s %s", $destination_tmp_dir, $destination_tmp_filename, getmypid(), '/tmp/caboose-aria2c.log', $url);
+    $pid = _caboose_exec('bg', "aria2c -x4 -q -d %s -o %s --auto-file-renaming=false --allow-overwrite=true --stop-with-process=%s %s", $destination_tmp_dir, $destination_tmp_filename, getmypid(), $url);
   }
   elseif (command_exists('wget')) {
     drush_print("Downloading with wget.");
