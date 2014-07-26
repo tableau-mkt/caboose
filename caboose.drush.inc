@@ -35,6 +35,7 @@ function caboose_drush_command() {
     ),
     'options' => array(
       'db-stage' => 'Downloads and loads the database backup into a staging database (prefixed with caboose).',
+      'db-skip-import' => 'Skip importing of database backup; only run freshen up.',
     ),
     'arguments' => array(
       'environment' => 'Environment to grab database from.',
@@ -85,6 +86,7 @@ function drush_caboose_validate($env = DEFAULT_ENV) {
  */
 function drush_caboose_fresh($env = DEFAULT_ENV) {
   $db_stage = drush_get_option('db-stage');
+  $db_skip_import = drush_get_option('db-skip-import');
 
   if (file_exists(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'say.inc')) {
     require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'say.inc');
@@ -92,17 +94,21 @@ function drush_caboose_fresh($env = DEFAULT_ENV) {
 
   _caboose_bling('intro', $message);
 
-  // Attempt a fast install.
-  $installed = _caboose_fast_install();
+  // Unless we're skipping db import
+  if (!$db_skip_import) {
+    if (!$db_stage) {
+      // Attempt a fast install.
+      $installed = _caboose_fast_install();
+    }
 
-  // If fast install failed, try a normal install.
-  if (!$installed) {
-    // Attempt to install the normal way.
-    $installed = _caboose_install($env, $db_stage);
+    // If fast install failed, try a normal install.
+    if (!$installed) {
+      // Attempt to install the normal way.
+      $installed = _caboose_install($env, $db_stage);
+    }
   }
-
   // If installed and we're not just staging the database.
-  if ($installed && !$db_stage) {
+  if (!$db_stage && ($db_skip_import || $installed)) {
     // Shape up the install how you like it.
     if (_caboose_freshenup($env)) {
       _caboose_bling('outro');
