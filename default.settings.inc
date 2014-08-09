@@ -8,7 +8,6 @@
 
 $modules_disable = array(
   'redis',
-  'tableau_user_profile_sync',
   'new_relic_insights',
 );
 
