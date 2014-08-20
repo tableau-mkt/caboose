@@ -11,6 +11,7 @@ $optional_modules_enable = array(
   'module_builder',
   'project_src',
   'search_krumo',
+  'hacked',
 );
 
 // Update permissions.
