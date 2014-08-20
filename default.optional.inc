@@ -11,6 +11,7 @@ $modules = array(
   'module_builder',
   'project_src',
   'search_krumo',
+  'hacked',
 );
 if (!empty($modules)) {
   module_enable($modules, TRUE);
