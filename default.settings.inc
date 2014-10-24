@@ -18,4 +18,10 @@ $modules_enable = array(
   'advanced_help',
   'update',
   'link_css',
+  'devel',
+  'coder',
+  'styleguide',
+  'forminspect',
+  'module_builder',
+  'search_krumo'
 );
