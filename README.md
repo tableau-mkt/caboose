@@ -5,8 +5,8 @@ Refresh the database on your local development environment from Pantheon and mak
 
 __Installation:__
  1. Clone into your ~/.drush folder.
- 2. Set a site UUID in sites/default/settings.local.php
-  * `$conf['caboose_pantheon_uuid'] = '44444444-3333-2222-1111-000000000000';`
+ 2. Set a site name in sites/default/settings.local.php
+  * `$conf['caboose_pantheon_name'] = 'my-site';`
  3. Clear Drush cache with ```drush cc drush``` command.
  4. Copy default.settings.inc as settings.inc to list modules to enable/disable.
  5. Copy default.sanitize.inc as sanitize.inc and adjust (recommended).
@@ -22,6 +22,6 @@ __Basic examples:__
 Default environment is live.
 
 __Notes:__
- * Be sure to login to Terminus via the ```drush pauth``` command.
- * If you haven't used other Terminus commands, you'll likely need to refresh aliases with the ```drush paliases`` command.
+ * Be sure you've installed [Terminus](https://github.com/pantheon-systems/cli/releases) (0.9.3 or greater is recommended)
+ * Be sure to login to Terminus via the ```terminus auth login``` command.
  * Progress indicator on mysql import requires [`pv`](http://www.ivarch.com/programs/pv.shtml) (`brew install pv`)
