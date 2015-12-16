@@ -225,8 +225,9 @@ function _caboose_fast_install() {
  * Run through freshening up steps.
  */
 function _caboose_install($env, $db_stage = FALSE) {
-  // Attempt to acquire a db lock.
-  $result = _caboose_lock('db', TRUE);
+  $terminus = exec('which terminus');
+  $site_uuid = variable_get('caboose_pantheon_uuid', NULL);
+  $site_name = variable_get('caboose_pantheon_site', NULL);
 
   // Fail here if lock not acquired.
   if (!$result) {
@@ -234,37 +235,46 @@ function _caboose_install($env, $db_stage = FALSE) {
   }
 
   // Sanity checking.
-  if (!function_exists('terminus_drush_command')) {
+  if (empty($terminus)) {
     return drush_set_error('DRUSH_CABOOSE_NO_TERMINUS', 'Terminus not available.');
   }
-
-  if (variable_get('caboose_pantheon_uuid', FALSE)) {
-    $site_uuid = variable_get('caboose_pantheon_uuid', NULL);
-  }
-  else {
-    return drush_set_error('DRUSH_CABOOSE_NO_SITE', 'No site UUID specified.');
+  if (version_compare(phpversion(), '5.5') < 0) {
+    return drush_set_error('DRUSH_CABOOSE_PHP_55_MIN', 'Terminus requires PHP 5.5 at a minimum.');
   }
 
-  // Get the user's session set.
-  if ($session_data = terminus_bootstrap()) {
-    extract($session_data);
+  // Ensure we're logged in.
+  $exit_code = NULL;
+  $array = array();
+  exec($terminus . ' auth whoami', $array, $exit_code);
+  if ($exit_code !== 0) {
+    return drush_set_error('DRUSH_CABOOSE_NO_AUTH', 'Terminus is not authenticated with Pantheon.');
   }
-  else {
-    return FALSE;
+
+  // Backwards compatibility layer, load site name from given UUID if available.
+  if (empty($site_name) && !empty($site_uuid)) {
+    $sites_info = json_decode(exec($terminus . ' sites list --format=json'));
+    foreach ($sites_info as $site_info) {
+      if ($site_info->id === $site_uuid) {
+        $site_name = $site_info->name;
+        break;
+      }
+    }
   }
 
-  $target_site = '@self';
+  // If we still have no Pantheon site name, abort.
+  if (empty($site_name)) {
+    return drush_set_error('DRUSH_CABOOSE_NO_SITE', 'No site UUID or name specified.');
+  }
 
-  // Download and load code modified from drush_terminus_pantheon_site_load_backup().
-  // Retrieve the latest bucket.
-  $bucket = terminus_latest_bucket($site_uuid, $env, 'database');
-
+  // Determine the latest backup URL and download it to the drush tmp folder.
+  // terminus site backups get --site={$site_name} --env={$env} --element=db --latest --format=json
   drush_print('Downloading database from (' . $env . ') site backup.' . "\n");
-  $result = terminus_api_backup_download_url($site_uuid, $env, $bucket, 'database');
-  $data = json_decode($result['json']);
+  $destination = drush_tempdir();
+  $raw_url = exec($terminus . ' site backups get --site=' . escapeshellarg($site_name) . ' --env=' . escapeshellarg($env) . ' --element=db --latest --format=json');
+  $url = json_decode($raw_url);
+  $filename = strstr(basename($url), '?', '_');
 
-  // Get the filename (return the part before the querystring).
-  $filename = strstr(basename($data->url), '?', TRUE);
+  $path = _caboose_download_file($url, $destination . DIRECTORY_SEPARATOR . $filename, TRUE);
 
   // Download the file.
   $path = _caboose_download_file($data->url);

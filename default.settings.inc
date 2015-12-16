@@ -8,7 +8,6 @@
 
 $modules_disable = array(
   'redis',
-  'tableau_user_profile_sync',
   'new_relic_insights',
 );
 
@@ -18,4 +17,11 @@ $modules_enable = array(
   'features_plumber',
   'advanced_help',
   'update',
+  'link_css',
+  'devel',
+  'coder',
+  'styleguide',
+  'forminspect',
+  'module_builder',
+  'search_krumo'
 );
