@@ -148,7 +148,7 @@ function _caboose_install($env) {
   $path = _caboose_download_file($url, $destination . DIRECTORY_SEPARATOR . $filename, TRUE);
 
   if (!$path && !drush_get_context('DRUSH_SIMULATE')) {
-    return drush_set_error('DRUSH_PSITE_DOWNLOAD_FAILED', 'Unable to download ' . $filename . ' to ' . $destination . ' from ' . $data->url);
+    return drush_set_error('DRUSH_PSITE_DOWNLOAD_FAILED', 'Unable to download ' . $filename . ' to ' . $destination . ' from ' . $url);
   }
 
   drush_print("Download was successful. It's here...");
