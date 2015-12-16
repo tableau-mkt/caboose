@@ -171,10 +171,10 @@ function _caboose_query($query, $db_spec = NULL) {
  */
 function _caboose_fast_install() {
   // Attempt to acquire a db lock.
-  $result = _caboose_lock('db', TRUE);
+  $lock_result = _caboose_lock('db', TRUE);
 
   // Fail here if lock not acquired.
-  if (!$result) {
+  if (!$lock_result) {
     return drush_set_error('DRUSH_LOCK_FAIL');
   }
 
@@ -229,8 +229,11 @@ function _caboose_install($env, $db_stage = FALSE) {
   $site_uuid = variable_get('caboose_pantheon_uuid', NULL);
   $site_name = variable_get('caboose_pantheon_site', NULL);
 
+  // Attempt to acquire a db lock.
+  $lock_result = _caboose_lock('db', TRUE);
+
   // Fail here if lock not acquired.
-  if (!$result) {
+  if (!$lock_result) {
     return drush_set_error('DRUSH_LOCK_FAIL');
   }
 
@@ -274,13 +277,11 @@ function _caboose_install($env, $db_stage = FALSE) {
   $url = json_decode($raw_url);
   $filename = strstr(basename($url), '?', '_');
 
+  // Download the file.
   $path = _caboose_download_file($url, $destination . DIRECTORY_SEPARATOR . $filename, TRUE);
 
-  // Download the file.
-  $path = _caboose_download_file($data->url);
-
   if (!$path && !drush_get_context('DRUSH_SIMULATE')) {
-    return drush_set_error('DRUSH_PSITE_DOWNLOAD_FAILED', 'Unable to download ' . $filename . ' from ' . $data->url);
+    return drush_set_error('DRUSH_PSITE_DOWNLOAD_FAILED', 'Unable to download ' . $filename . ' from ' . $url);
   }
 
   drush_print("Download was successful. It's here...");
