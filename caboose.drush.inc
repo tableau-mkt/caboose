@@ -6,7 +6,11 @@
 /**
  * Settings...
  */
-define('DEFAULT_ENV', 'live');
+define('DEFAULT_ENV', 'test');
+
+if (function_exists('pcntl_signal')) {
+  pcntl_signal(SIGINT, '_caboose_sig_handler');
+}
 
 /**
  * Implements hook_drush_help().
@@ -25,9 +29,13 @@ function caboose_drush_command() {
   $items['caboose-fresh'] = array(
     'description' => 'Refresh your local development environment from Pantheon.',
     'examples' => array(
-      'drush caboose' => 'Download and install the latest backup of live production.',
-      'drush caboose test' => 'Download and install latest backup of test environment.',
-      'drush caboose dev' => 'Download and install latest backup of dev environment.',
+      'drush caboose' => 'Caboose from test environment. (default)',
+      'drush caboose live' => 'Caboose from live environment.',
+      'drush caboose dev' => 'Caboose from dev environment.',
+    ),
+    'options' => array(
+      'db-stage' => 'Downloads and loads the database backup into a staging database (prefixed with caboose).',
+      'db-skip-import' => 'Skip importing of database backup; only run freshen up.',
     ),
     'arguments' => array(
       'environment' => 'Environment to grab database from.',
@@ -77,33 +85,157 @@ function drush_caboose_validate($env = DEFAULT_ENV) {
  *   The dev/test/live environment to target.
  */
 function drush_caboose_fresh($env = DEFAULT_ENV) {
+  $db_stage = drush_get_option('db-stage');
+  $db_skip_import = drush_get_option('db-skip-import');
+
   if (file_exists(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'say.inc')) {
     require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'say.inc');
   }
 
   _caboose_bling('intro', $message);
 
-  // Get your data onto this environment.
-  if (_caboose_install($env)) {
+  // Unless we're skipping db import
+  if (!$db_skip_import) {
+    if (!$db_stage) {
+      // Attempt a fast install.
+      $installed = _caboose_fast_install();
+    }
 
+    // If fast install failed, try a normal install.
+    if (!$installed) {
+      // Attempt to install the normal way.
+      $installed = _caboose_install($env, $db_stage);
+    }
+  }
+  // If installed and we're not just staging the database.
+  if (!$db_stage && ($db_skip_import || $installed)) {
     // Shape up the install how you like it.
     if (_caboose_freshenup($env)) {
       _caboose_bling('outro');
     }
-
   }
 
   return TRUE;
 }
 
+/**
+ * Acquire or release a lock with given name.
+ *
+ * @param string $name
+ * @param bool $lock
+ * @param integer $retry_minutes
+ *
+ * @return  bool
+ *   If $lock is TRUE, then returns whether the lock was acquired.
+ */
+function _caboose_lock($name, $lock = TRUE, $retry_minutes = 15) {
+  $lock_file = drush_find_tmp() . DIRECTORY_SEPARATOR . "caboose_$name.lock";
+
+  if ($lock) {
+    if (file_exists($lock_file)) {
+      drush_print("Lock could not be acquired. Will retry for $retry_minutes minutes.");
+    }
+    // Keep trying to get a lock for given $retry_minutes.
+    $retries = $retry_minutes * 60;
+    $GLOBALS['caboose_lock_files'][] = $lock_file;
+    exec("lockfile -1 -r$retries $lock_file", $output, $result);
+    if (function_exists('pcntl_signal_dispatch')) {
+      pcntl_signal_dispatch();
+    }
+    return $result == 0;
+  }
+  else {
+    unlink($lock_file);
+    return TRUE;
+  }
+}
+
+/**
+ * Run a database query and return the output or FALSE.
+ * Uses --silent and --skip-column-names so the output is more easily parsed.
+ *
+ * @param string $query
+ *
+ * @return mixed
+ *   If successful, output as string; otherwise, FALSE.
+ */
+function _caboose_query($query, $db_spec = NULL) {
+  $command = _drush_sql_connect($db_spec) . ' -s -N -e ' . escapeshellarg($query);
+  exec($command, $output, $result);
+
+  return ($result == 0) ? $output : FALSE;
+}
+
+/**
+ * Load staged version of database if it exists.
+ */
+function _caboose_fast_install() {
+  // Attempt to acquire a db lock.
+  $lock_result = _caboose_lock('db', TRUE);
+
+  // Fail here if lock not acquired.
+  if (!$lock_result) {
+    return drush_set_error('DRUSH_LOCK_FAIL');
+  }
+
+  $db_spec = _drush_sql_get_db_spec();
+
+  $source_db = 'caboose_' . $db_spec['database'];
+  $destination_db = $db_spec['database'];
+
+  // Update $db_spec to use staged caboose database.
+  $db_spec['database'] = $source_db;
+
+  $result = _caboose_query("SHOW DATABASES LIKE '$source_db';");
+  $db_exists = is_array($result) && $result[0] == $source_db;
+
+  if (!$db_exists) {
+    // Release db lock.
+    _caboose_lock('db', FALSE);
+
+    return FALSE;
+  }
+
+  // Drop and recreate DB to get started fresh.
+  _caboose_query("DROP DATABASE IF EXISTS $destination_db; CREATE DATABASE $destination_db");
+
+  // Get all tables from source database
+  $result = _caboose_query("SHOW TABLES", $db_spec);
+
+  // If the result's an array, iterate over the tables.
+  if (is_array($result)) {
+    foreach ($result as $table) {
+      // Rename the tables from source to destination—effectively moving them.
+      $result = _caboose_query("RENAME TABLE $source_db.$table TO $destination_db.$table", $db_spec);
+    }
+  }
+
+  // Drop source database since it should be "empty" now.
+  _caboose_query("DROP DATABASE $source_db");
+
+  // Release db lock.
+  _caboose_lock('db', FALSE);
+
+  drush_print("BOOM! Database import complete.");
+
+  return TRUE;
+}
 
 /**
  * Run through freshening up steps.
  */
-function _caboose_install($env) {
+function _caboose_install($env, $db_stage = FALSE) {
   $terminus = exec('which terminus');
   $site_uuid = variable_get('caboose_pantheon_uuid', NULL);
   $site_name = variable_get('caboose_pantheon_site', NULL);
+
+  // Attempt to acquire a db lock.
+  $lock_result = _caboose_lock('db', TRUE);
+
+  // Fail here if lock not acquired.
+  if (!$lock_result) {
+    return drush_set_error('DRUSH_LOCK_FAIL');
+  }
 
   // Sanity checking.
   if (empty($terminus)) {
@@ -145,31 +277,50 @@ function _caboose_install($env) {
   $url = json_decode($raw_url);
   $filename = strstr(basename($url), '?', '_');
 
+  // Download the file.
   $path = _caboose_download_file($url, $destination . DIRECTORY_SEPARATOR . $filename, TRUE);
 
   if (!$path && !drush_get_context('DRUSH_SIMULATE')) {
-    return drush_set_error('DRUSH_PSITE_DOWNLOAD_FAILED', 'Unable to download ' . $filename . ' to ' . $destination . ' from ' . $data->url);
+    return drush_set_error('DRUSH_PSITE_DOWNLOAD_FAILED', 'Unable to download ' . $filename . ' from ' . $url);
   }
 
   drush_print("Download was successful. It's here...");
   drush_print("$path\n");
 
-  drush_print("Overwriting database.");
-  // Drop the whole DB to get started fresh.
   $db_spec = _drush_sql_get_db_spec();
-  shell_exec(_drush_sql_connect() . ' -e "DROP DATABASE ' . $db_spec['database'] . '; CREATE DATABASE ' . $db_spec['database'] . '"');
+  $database_name = $db_spec['database'];
+
+  if ($db_stage) {
+    $database_name = 'caboose_' . $database_name;
+    // Overwrite in $db_spec so we can import to a different database.
+    $db_spec['database'] = $database_name;
+  }
+
+  drush_print("Importing database to $database_name.");
+
+  // Drop the whole DB to get started fresh.
+  $result = _caboose_query(
+    "DROP DATABASE IF EXISTS $database_name; CREATE DATABASE $database_name;"
+  );
+
   // If pv command exists, use it to give an import progress bar
   if (command_exists('pv')) {
-    $import_cmd = "pv $path | gzcat | " . _drush_sql_connect();
+    $import_cmd = "pv $path | gzcat | " . _drush_sql_connect($db_spec);
   }
   else {
-    $import_cmd = "gzcat $path | " . _drush_sql_connect();
+    $import_cmd = "gzcat $path | " . _drush_sql_connect($db_spec);
   }
+
   // Import the SQL file, using system to avoid PHP based import (for memory reasons).
   system($import_cmd);
+
+  // Delete the downloaded file.
   drush_delete_dir($path);
 
-  drush_print("Database load complete.\n");
+  drush_print("Database import complete.");
+
+  // Release db lock.
+  _caboose_lock('db', FALSE);
 
   return TRUE;
 }
@@ -213,7 +364,7 @@ function _caboose_freshenup($env) {
     drush_print("Overwriting fields.\n");
     foreach($sanitize_fields as $field => $value) {
       $query = "UPDATE field_data_field_$field SET field_{$field}_value = '$value'";
-      shell_exec(_drush_sql_connect() . ' -e "' . $query . '"');
+      shell_exec(_drush_sql_connect() . ' -e ' . escapeshellarg($query));
       // Legacy approach.
       //$result = drush_invoke_process($target_site, 'sql-query', array($query), $options, $backend_options);
     }
@@ -298,20 +449,25 @@ function _caboose_print($str, $overwrite = TRUE) {
  *
  * Executes a shell command. Output is only printed if in verbose mode. Output is stored and can be retrieved using drush_shell_exec_output(). If in simulation mode, no action is taken.
  *
+ * @param string $type
+ *   How to exec the command. One of 'fg' for foreground, 'bg' for background.
  * @param string $cmd
  *   The command to execute. May include placeholders used for sprintf.
  * @param  ...
  *   Values for the placeholders specified in $cmd. Each of these will be passed through escapeshellarg() to ensure they are safe to use on the command line.
- * @return boolean
- *   TRUE on success, FALSE on failure
+ * @return mixed
+ *   TRUE (or PID if $type is 'bg') on success, FALSE on failure
  */
-function _caboose_shell_exec($cmd) {
-  $args = func_get_args();
+function _caboose_exec($type, $cmd) {
+  // Get function arguments into an array, minus the first one
+  $args = array_slice(func_get_args(), 1);
 
-  //do not change the command itself, just the parameters.
+  // Do not change the command itself, just the parameters.
   for ($x = 1; $x < sizeof($args); $x++) {
     $args[$x] = escapeshellarg($args[$x]);
   }
+
+  // Call sprintf with the format string and a variable number of args.
   $command = call_user_func_array('sprintf', $args);
 
   if (drush_get_context('DRUSH_VERBOSE') || drush_get_context('DRUSH_SIMULATE')) {
@@ -319,52 +475,95 @@ function _caboose_shell_exec($cmd) {
   }
 
   if (!drush_get_context('DRUSH_SIMULATE')) {
-    $pid = exec($command . ' > /dev/null 2>&1 & echo $!', $output, $result);
+    if ($type == 'fg') {
+      system($command, $result);
 
-    return ($result == 0) ? $pid : FALSE;
+      return $result == 0;
+    }
+    elseif ($type == 'bg') {
+      $pid = exec($command . ' > /dev/null 2>&1 & echo $!', $output, $result);
+
+      if ($pid) {
+        $GLOBALS['caboose_pids'][] = $pid;
+      }
+
+      return ($result == 0) ? $pid : FALSE;
+    }
+    else {
+      return FALSE;
+    }
   }
 }
 
+/**
+ * Teardown after interrupt signal.
+ */
+function _caboose_sig_handler($signo) {
+  drush_print("Signal caught ($signo).");
+  switch ($signo) {
+    case SIGINT:
+      drush_print("Removing locks and killing any downloads.");
+
+      if (isset($GLOBALS['caboose_lock_files'])) {
+        foreach (array_unique($GLOBALS['caboose_lock_files']) as $lock_file) {
+          unlink($lock_file);
+        }
+      }
+
+      if (isset($GLOBALS['caboose_pids'])) {
+        foreach ($GLOBALS['caboose_pids'] as $pid) {
+          posix_kill($pid, SIGTERM);
+        }
+      }
+
+      exit;
+      break;
+  }
+}
 
 /**
- * Based on drush_download_file, but instead calls _caboose_shell_exec
+ * Based on drush_download_file, but instead calls _caboose_exec
  *
  * @param string $url
  *   The url of the file to download.
- * @param string $destination
- *   The name of the file to be saved, which may include the full path.
- * @param boolean $overwrite
- *   Overwrite any file thats already at the destination.
  * @return string
  *   The path to the downloaded file, or FALSE if the file could not be downloaded.
  */
-function _caboose_download_file($url, $destination, $overwrite = TRUE) {
-  static $use_wget;
-  if ($use_wget === NULL) {
-    $use_wget = drush_shell_exec('which wget');
-  }
+function _caboose_download_file($url) {
+  $destination_tmp = drush_tempnam('caboose_download_');
+  $destination_tmp_filename = basename($destination_tmp);
+  $destination_tmp_dir = str_replace('/' . $destination_tmp_filename, '', $destination_tmp);
 
-  $destination_tmp = drush_tempnam('download_file');
-  if ($use_wget) {
-    $pid = _caboose_shell_exec("wget -q --timeout=30 -O %s %s", $destination_tmp, $url);
+  // Try with aria2c, wget, curl, php ...
+  if (command_exists('aria2c')) {
+    drush_print("Downloading with aria2c.");
+    $pid = _caboose_exec('bg', "aria2c -x4 -q -d %s -o %s --auto-file-renaming=false --allow-overwrite=true --stop-with-process=%s %s", $destination_tmp_dir, $destination_tmp_filename, getmypid(), $url);
   }
+  elseif (command_exists('wget')) {
+    drush_print("Downloading with wget.");
+    $pid = _caboose_exec('bg', "wget -q --timeout=30 -O %s %s", $destination_tmp, $url);
+  }
+  elseif (command_exists('curl')) {
+    drush_print("Downloading with curl.");
+    $pid = _caboose_exec('bg', "curl --fail -s -L --connect-timeout 30 -o %s %s", $destination_tmp, $url);
+  }
+  // Last resort, use php.
   else {
-    $pid = _caboose_shell_exec("curl --fail -s -L --connect-timeout 30 -o %s %s", $destination_tmp, $url);
+    drush_print("Downloading with PHP.");
+    @file_put_contents($destination_tmp, @file_get_contents($url));
   }
 
-  // Wait for the process to finish and animate some bling
-  _caboose_bling('working', NULL, $pid);
-
-  if (!drush_file_not_empty($destination_tmp) && $file = @file_get_contents($url)) {
-    @file_put_contents($destination_tmp, $file);
+  if (isset($pid)) {
+    // Wait for the process to finish and animate some bling
+    _caboose_bling('working', NULL, $pid);
   }
+
+  // If the file is still empty, we failed to download.
   if (!drush_file_not_empty($destination_tmp)) {
-    // Download failed.
     return FALSE;
   }
 
-  drush_move_dir($destination_tmp, $destination, $overwrite);
-  return $destination;
+  return $destination_tmp;
 }
 
 
@@ -485,6 +684,9 @@ EOD;
       $overwrite = TRUE;
       $frame++;
       system("kill -0 $pid 2>/dev/null", $retval);
+      if (function_exists('pcntl_signal_dispatch')) {
+        pcntl_signal_dispatch();
+      }
     } while ($retval == 0);
     print "\n";
   }
