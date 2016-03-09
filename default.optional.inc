@@ -1,4 +1,9 @@
 <?php
+/**
+ * @file
+ * Optional stuff after running update/sanitize.
+ * Copy as optional.inc and update for your needs.
+ */
 
 /**
  * EXAMPLE: Update permissions.

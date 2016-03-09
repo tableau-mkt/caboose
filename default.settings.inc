@@ -2,7 +2,7 @@
 /**
  * @file
  * Enable/disable your site's modules.
- * Copy as settings.php and update for your needs.
+ * Copy as settings.inc and update for your needs.
  */
 
 
