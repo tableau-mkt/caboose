@@ -159,7 +159,7 @@ function _caboose_install($env) {
   $db_spec = _drush_sql_get_db_spec();
   shell_exec(_drush_sql_connect() . ' -e "DROP DATABASE ' . $db_spec['database'] . '; CREATE DATABASE ' . $db_spec['database'] . '"');
   // If pv command exists, use it to give an import progress bar
-  if (command_exists('pv')) {
+  if (_caboose_command_exists('pv')) {
     $import_cmd = "pv $path | gzcat | " . _drush_sql_connect();
   }
   else {
@@ -268,7 +268,7 @@ function _caboose_freshenup($env) {
  * @return boolean
  *   Result of if command exists on the system.
  */
-function command_exists($cmd) {
+function _caboose_command_exists($cmd) {
   $returnVal = null;
   exec("which $cmd", $output, $returnVal);
   return $returnVal === 0;
@@ -492,7 +492,7 @@ EOD;
     drush_print($graphic . "\n");
   }
 
-  if (command_exists('say')) {
+  if (_caboose_command_exists('say')) {
     $say_cmd = "say $message > /dev/null 2>/dev/null &";
     shell_exec($say_cmd);
   }
