@@ -304,8 +304,8 @@ function _caboose_install($env, $db_stage = FALSE) {
   );
 
   // If pv command exists, use it to give an import progress bar
-  if (command_exists('pv')) {
-    $import_cmd = "pv $path | gzcat | " . _drush_sql_connect($db_spec);
+  if (_caboose_command_exists('pv')) {
+    $import_cmd = "pv $path | gzcat | " . _drush_sql_connect();
   }
   else {
     $import_cmd = "gzcat $path | " . _drush_sql_connect($db_spec);
@@ -419,7 +419,7 @@ function _caboose_freshenup($env) {
  * @return boolean
  *   Result of if command exists on the system.
  */
-function command_exists($cmd) {
+function _caboose_command_exists($cmd) {
   $returnVal = null;
   exec("which $cmd", $output, $returnVal);
   return $returnVal === 0;
@@ -694,7 +694,7 @@ EOD;
     drush_print($graphic . "\n");
   }
 
-  if (command_exists('say')) {
+  if (_caboose_command_exists('say')) {
     $say_cmd = "say $message > /dev/null 2>/dev/null &";
     shell_exec($say_cmd);
   }
