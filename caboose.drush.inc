@@ -535,15 +535,15 @@ function _caboose_download_file($url) {
   $destination_tmp_dir = str_replace('/' . $destination_tmp_filename, '', $destination_tmp);
 
   // Try with aria2c, wget, curl, php ...
-  if (command_exists('aria2c')) {
+  if (_caboose_command_exists('aria2c')) {
     drush_print("Downloading with aria2c.");
     $pid = _caboose_exec('bg', "aria2c -x4 -q -d %s -o %s --auto-file-renaming=false --allow-overwrite=true --stop-with-process=%s %s", $destination_tmp_dir, $destination_tmp_filename, getmypid(), $url);
   }
-  elseif (command_exists('wget')) {
+  elseif (_caboose_command_exists('wget')) {
     drush_print("Downloading with wget.");
     $pid = _caboose_exec('bg', "wget -q --timeout=30 -O %s %s", $destination_tmp, $url);
   }
-  elseif (command_exists('curl')) {
+  elseif (_caboose_command_exists('curl')) {
     drush_print("Downloading with curl.");
     $pid = _caboose_exec('bg', "curl --fail -s -L --connect-timeout 30 -o %s %s", $destination_tmp, $url);
   }
