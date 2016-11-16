@@ -156,14 +156,17 @@ function _caboose_install($env) {
 
   drush_print("Overwriting database.");
   // Drop the whole DB to get started fresh.
-  $db_spec = _drush_sql_get_db_spec();
-  shell_exec(_drush_sql_connect() . ' -e "DROP DATABASE ' . $db_spec['database'] . '; CREATE DATABASE ' . $db_spec['database'] . '"');
+  // Account for Drush 5 / 7+ differences.
+  $db_spec = function_exists('_drush_sql_get_db_spec') ? _drush_sql_get_db_spec() : drush_sql_get_class()->db_spec();
+  $db_connect = function_exists('_drush_sql_connect') ? '_drush_sql_connect' : 'drush_sql_connect';
+
+  shell_exec(call_user_func($db_connect) . ' -e "DROP DATABASE ' . $db_spec['database'] . '; CREATE DATABASE ' . $db_spec['database'] . '"');
   // If pv command exists, use it to give an import progress bar
   if (_caboose_command_exists('pv')) {
-    $import_cmd = "pv $path | gzcat | " . _drush_sql_connect();
+    $import_cmd = "pv $path | gzcat | " . call_user_func($db_connect);
   }
   else {
-    $import_cmd = "gzcat $path | " . _drush_sql_connect();
+    $import_cmd = "gzcat $path | " . call_user_func($db_connect);
   }
   // Import the SQL file, using system to avoid PHP based import (for memory reasons).
   system($import_cmd);
@@ -209,11 +212,13 @@ function _caboose_freshenup($env) {
   if (file_exists(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'sanitize.inc')) {
     require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'sanitize.inc');
 
+    $db_connect = function_exists('_drush_sql_connect') ? '_drush_sql_connect' : 'drush_sql_connect';
+
     // Overwrite fields.
     drush_print("Overwriting fields.\n");
     foreach($sanitize_fields as $field => $value) {
       $query = "UPDATE field_data_field_$field SET field_{$field}_value = '$value'";
-      shell_exec(_drush_sql_connect() . ' -e "' . $query . '"');
+      shell_exec(call_user_func($db_connect) . ' -e "' . $query . '"');
       // Legacy approach.
       //$result = drush_invoke_process($target_site, 'sql-query', array($query), $options, $backend_options);
     }
@@ -228,7 +233,7 @@ function _caboose_freshenup($env) {
       $where = 'WHERE mail <> ' . implode(' AND mail <> ', $accounts);
     }
     $query = "UPDATE users SET mail = CONCAT(PASSWORD(mail), '$email_domain'), pass = 'password', init = CONCAT(PASSWORD(init), '$email_domain') $where";
-    shell_exec(_drush_sql_connect() . ' -e "' . $query . '"');
+    shell_exec(call_user_func($db_connect) . ' -e "' . $query . '"');
 
     // Admin password.
     $user = user_load(1);
