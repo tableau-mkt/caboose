@@ -33,7 +33,7 @@ function caboose_drush_command() {
       'environment' => 'Environment to grab database from.',
     ),
     // Required for variable_get. Maybe a way to avoid.
-    'bootstrap' => DRUSH_BOOTSTRAP_DRUPAL_CONFIGURATION,
+    'bootstrap' => function_exists('variable_get') ? DRUSH_BOOTSTRAP_DRUPAL_CONFIGURATION : DRUSH_BOOTSTRAP_DRUPAL_FULL,
     'aliases' => array('caboose'),
   );
   return $items;
@@ -102,8 +102,15 @@ function drush_caboose_fresh($env = DEFAULT_ENV) {
  */
 function _caboose_install($env) {
   $terminus = exec('which terminus');
-  $site_uuid = variable_get('caboose_pantheon_uuid', NULL);
-  $site_name = variable_get('caboose_pantheon_site', NULL);
+
+  if (function_exists('variable_get')) {
+    $site_uuid = variable_get('caboose_pantheon_uuid', NULL);
+    $site_name = variable_get('caboose_pantheon_site', NULL);
+  }
+  else {
+    $site_uuid = \Drupal::config('custom')->get('caboose_pantheon_uuid');
+    $site_name = \Drupal::config('custom')->get('caboose_pantheon_site');
+  }
 
   // Sanity checking.
   if (empty($terminus)) {
@@ -155,15 +162,24 @@ function _caboose_install($env) {
   drush_print("$path\n");
 
   drush_print("Overwriting database.");
-  // Drop the whole DB to get started fresh.
-  $db_spec = _drush_sql_get_db_spec();
-  shell_exec(_drush_sql_connect() . ' -e "DROP DATABASE ' . $db_spec['database'] . '; CREATE DATABASE ' . $db_spec['database'] . '"');
-  // If pv command exists, use it to give an import progress bar
-  if (_caboose_command_exists('pv')) {
-    $import_cmd = "pv $path | gzcat | " . _drush_sql_connect();
+
+  if (function_exists('_drush_sql_get_db_spec')) {
+    $db_spec = _drush_sql_get_db_spec();
+    $connect_string = _drush_sql_connect();
   }
   else {
-    $import_cmd = "gzcat $path | " . _drush_sql_connect();
+    $db_spec = drush_sql_get_class()->db_spec();
+    $connect_string = drush_sql_get_class()->connect();
+  }
+
+  // Drop the whole DB to get started fresh.
+  shell_exec($connect_string . ' -e "DROP DATABASE ' . $db_spec['database'] . '; CREATE DATABASE ' . $db_spec['database'] . '"');
+  // If pv command exists, use it to give an import progress bar
+  if (_caboose_command_exists('pv')) {
+    $import_cmd = "pv $path | gzcat | " . $connect_string;
+  }
+  else {
+    $import_cmd = "gzcat $path | " . $connect_string;
   }
   // Import the SQL file, using system to avoid PHP based import (for memory reasons).
   system($import_cmd);
@@ -179,6 +195,13 @@ function _caboose_install($env) {
  */
 function _caboose_freshenup($env) {
 
+  if (function_exists('_drush_sql_connect')) {
+    $connect_string = _drush_sql_connect();
+  }
+  else {
+    $connect_string = drush_sql_get_class()->connect();
+  }
+
   // Kick up to a higher bootstrap level for altering the install.
   drush_bootstrap(DRUSH_BOOTSTRAP_DRUPAL_FULL);
 
@@ -189,7 +212,17 @@ function _caboose_freshenup($env) {
 
     if (isset($modules_disable) && count($modules_disable) > 0) {
       drush_print("Disabling modules.\n");
-      module_disable($modules_disable, TRUE);
+      if (function_exists('module_disable')) {
+        module_disable($modules_disable, TRUE);
+      }
+      else {
+        try {
+          \Drupal::service('module_installer')->uninstall($modules_disable, TRUE);
+        }
+        catch (\Drupal\Core\Extension\MissingDependencyException $e) {
+          drush_print('Error enabling module: ' . $e->getMessage());
+        }
+      }
     }
 
     drush_print("Running updates...");
@@ -197,7 +230,17 @@ function _caboose_freshenup($env) {
 
     if (isset($modules_enable) && count($modules_enable) > 0) {
       drush_print("\nEnabling modules.\n");
-      module_enable($modules_enable, TRUE);
+      if (function_exists('module_enable')) {
+        module_enable($modules_enable, TRUE);
+      }
+      else {
+        try {
+          \Drupal::service('module_installer')->install($modules_enable, TRUE);
+        }
+        catch (\Drupal\Core\Extension\MissingDependencyException $e) {
+          drush_print('Error enabling module: ' . $e->getMessage());
+        }
+      }
     }
   }
   else {
@@ -213,7 +256,7 @@ function _caboose_freshenup($env) {
     drush_print("Overwriting fields.\n");
     foreach($sanitize_fields as $field => $value) {
       $query = "UPDATE field_data_field_$field SET field_{$field}_value = '$value'";
-      shell_exec(_drush_sql_connect() . ' -e "' . $query . '"');
+      shell_exec($connect_string . ' -e "' . $query . '"');
       // Legacy approach.
       //$result = drush_invoke_process($target_site, 'sql-query', array($query), $options, $backend_options);
     }
@@ -228,11 +271,17 @@ function _caboose_freshenup($env) {
       $where = 'WHERE mail <> ' . implode(' AND mail <> ', $accounts);
     }
     $query = "UPDATE users SET mail = CONCAT(PASSWORD(mail), '$email_domain'), pass = 'password', init = CONCAT(PASSWORD(init), '$email_domain') $where";
-    shell_exec(_drush_sql_connect() . ' -e "' . $query . '"');
+    shell_exec($connect_string . ' -e "' . $query . '"');
 
     // Admin password.
     $user = user_load(1);
-    user_save($user, array('pass' => $admin_pass));
+    if (method_exists($user, 'save')) {
+      $user->setPassword($admin_pass);
+      $user->save();
+    }
+    else {
+      user_save($user, array('pass' => $admin_pass));
+    }
 
   }
   else {
@@ -250,7 +299,7 @@ function _caboose_freshenup($env) {
 
   drush_print("Done. Clearing cache.\n");
   // @todo Might be nice to clear the Drush cache.
-  cache_clear_all();
+  drupal_flush_all_caches();
 
   return TRUE;
 }
