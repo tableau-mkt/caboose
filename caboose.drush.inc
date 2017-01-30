@@ -123,14 +123,15 @@ function _caboose_install($env) {
   // Ensure we're logged in.
   $exit_code = NULL;
   $array = array();
-  exec($terminus . ' auth whoami', $array, $exit_code);
+  exec($terminus . ' auth:whoami', $array, $exit_code);
   if ($exit_code !== 0) {
     return drush_set_error('DRUSH_CABOOSE_NO_AUTH', 'Terminus is not authenticated with Pantheon.');
   }
 
   // Backwards compatibility layer, load site name from given UUID if available.
   if (empty($site_name) && !empty($site_uuid)) {
-    $sites_info = json_decode(exec($terminus . ' sites list --format=json'));
+    exec($terminus . ' site:list --format=json', $sites_info);
+    $sites_info = json_decode(implode('', $sites_info));
     foreach ($sites_info as $site_info) {
       if ($site_info->id === $site_uuid) {
         $site_name = $site_info->name;
@@ -148,8 +149,7 @@ function _caboose_install($env) {
   // terminus site backups get --site={$site_name} --env={$env} --element=db --latest --format=json
   drush_print('Downloading database from (' . $env . ') site backup.' . "\n");
   $destination = drush_tempdir();
-  $raw_url = exec($terminus . ' site backups get --site=' . escapeshellarg($site_name) . ' --env=' . escapeshellarg($env) . ' --element=db --latest --format=json');
-  $url = json_decode($raw_url);
+  $url = exec($terminus . ' backup:get ' . escapeshellarg($site_name) . '.' . escapeshellarg($env) . ' --element=db');
   $filename = strstr(basename($url), '?', '_');
 
   $path = _caboose_download_file($url, $destination . DIRECTORY_SEPARATOR . $filename, TRUE);
