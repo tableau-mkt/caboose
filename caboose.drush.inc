@@ -120,9 +120,14 @@ function _caboose_install($env) {
     return drush_set_error('DRUSH_CABOOSE_PHP_55_MIN', 'Terminus requires PHP 5.5 at a minimum.');
   }
 
+  // Ensure we're running a compatible version of terminus.
+  $terminus_version = exec($terminus . ' --version', $array, $exit_code);
+  $terminus_version = trim(str_replace('Terminus', '', $terminus_version));
+  if ($exit_code !== 0 || version_compare($terminus_version, '1.0.0') === -1) {
+    return drush_set_error('DRUSH_CABOOSE_TERMINUS_MIN', 'Terminus version must be >= 1.0.0.');
+  }
+
   // Ensure we're logged in.
-  $exit_code = NULL;
-  $array = array();
   exec($terminus . ' auth:whoami', $array, $exit_code);
   if ($exit_code !== 0) {
     return drush_set_error('DRUSH_CABOOSE_NO_AUTH', 'Terminus is not authenticated with Pantheon.');
