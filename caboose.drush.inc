@@ -136,10 +136,10 @@ function _caboose_install($env) {
   // Backwards compatibility layer, load site name from given UUID if available.
   if (empty($site_name) && !empty($site_uuid)) {
     exec($terminus . ' site:list --format=json', $sites_info);
-    $sites_info = json_decode(implode('', $sites_info));
-    foreach ($sites_info as $site_info) {
-      if ($site_info->id === $site_uuid) {
-        $site_name = $site_info->name;
+    $sites_info = json_decode(implode('', $sites_info), TRUE);
+    foreach ($sites_info as $uuid => $site_info) {
+      if ($uuid === $site_uuid) {
+        $site_name = $site_info['name'];
         break;
       }
     }
