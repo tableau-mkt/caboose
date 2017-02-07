@@ -137,7 +137,12 @@ function _caboose_install($env) {
 
   // Backwards compatibility layer, load site name from given UUID if available.
   if (empty($site_name) && !empty($site_uuid)) {
-    $sites_info = _caboose_exec($terminus . ' site:list --format=json');
+    // Small workaround to ensure users who are not members of an org do not run
+    // into a terminus bug. @see https://github.com/pantheon-systems/terminus/issues/1585
+    exec($terminus . ' org:list', $array, $exit_code);
+    $team_flag = $exit_code !== 0 ? '--team' : '';
+
+    $sites_info = _caboose_exec($terminus . ' site:list ' . $team_flag . ' --format=json');
     $sites_info = json_decode($sites_info, TRUE);
 
     foreach ($sites_info as $uuid => $site_info) {
