@@ -122,7 +122,9 @@ function _caboose_install($env) {
 
   // Ensure we're running a compatible version of terminus.
   $terminus_version = exec($terminus . ' --version', $array, $exit_code);
-  $terminus_version = trim(str_replace('Terminus', '', $terminus_version));
+  if (preg_match('/\d+(?:\.\d+)+/', $terminus_version, $matches)) {
+    $terminus_version = $matches[0];
+  }
   if ($exit_code !== 0 || version_compare($terminus_version, '1.0.0') === -1) {
     return drush_set_error('DRUSH_CABOOSE_TERMINUS_MIN', 'Terminus version must be >= 1.0.0.');
   }
