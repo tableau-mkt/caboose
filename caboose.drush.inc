@@ -137,8 +137,9 @@ function _caboose_install($env) {
 
   // Backwards compatibility layer, load site name from given UUID if available.
   if (empty($site_name) && !empty($site_uuid)) {
-    exec($terminus . ' site:list --format=json', $sites_info);
-    $sites_info = json_decode(implode('', $sites_info), TRUE);
+    $sites_info = _caboose_exec($terminus . ' site:list --format=json');
+    $sites_info = json_decode($sites_info, TRUE);
+
     foreach ($sites_info as $uuid => $site_info) {
       if ($uuid === $site_uuid) {
         $site_name = $site_info['name'];
@@ -156,7 +157,7 @@ function _caboose_install($env) {
   // terminus site backups get --site={$site_name} --env={$env} --element=db --latest --format=json
   drush_print('Downloading database from (' . $env . ') site backup.' . "\n");
   $destination = drush_tempdir();
-  $url = exec($terminus . ' backup:get ' . escapeshellarg($site_name) . '.' . escapeshellarg($env) . ' --element=db');
+  $url = _caboose_exec($terminus . ' backup:get ' . escapeshellarg($site_name) . '.' . escapeshellarg($env) . ' --element=db');
   $filename = strstr(basename($url), '?', '_');
 
   $path = _caboose_download_file($url, $destination . DIRECTORY_SEPARATOR . $filename, TRUE);
@@ -316,6 +317,18 @@ function _caboose_freshenup($env) {
  * Abstracted functions...
  */
 
+/**
+ * Executes a command, similar to exec, and captures stdout, including
+ * multi-line output. Ignores stderr completely. Assumes the provided
+ * command has already been sanitized.
+ */
+function _caboose_exec($cmd) {
+  ob_start();
+  passthru($cmd);
+  $response = trim(ob_get_clean());
+  ob_end_clean();
+  return $response;
+}
 
 /**
  * Check if a system command exists.
