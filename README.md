@@ -22,6 +22,6 @@ __Basic examples:__
 Default environment is live.
 
 __Notes:__
- * Be sure you've installed [Terminus](https://github.com/pantheon-systems/cli/releases) (0.9.3 or greater is recommended)
- * Be sure to login to Terminus via the ```terminus auth login``` command.
+ * Be sure you've installed [Terminus](https://github.com/pantheon-systems/terminus/releases) (1.0.0 or greater is required)
+ * Be sure to login to Terminus via the ```terminus auth:login``` command.
  * Progress indicator on mysql import requires [`pv`](http://www.ivarch.com/programs/pv.shtml) (`brew install pv`)

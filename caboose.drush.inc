@@ -120,20 +120,34 @@ function _caboose_install($env) {
     return drush_set_error('DRUSH_CABOOSE_PHP_55_MIN', 'Terminus requires PHP 5.5 at a minimum.');
   }
 
+  // Ensure we're running a compatible version of terminus.
+  $terminus_version = exec($terminus . ' --version', $array, $exit_code);
+  if (preg_match('/\d+(?:\.\d+)+/', $terminus_version, $matches)) {
+    $terminus_version = $matches[0];
+  }
+  if ($exit_code !== 0 || version_compare($terminus_version, '1.0.0') === -1) {
+    return drush_set_error('DRUSH_CABOOSE_TERMINUS_MIN', 'Terminus version must be >= 1.0.0.');
+  }
+
   // Ensure we're logged in.
-  $exit_code = NULL;
-  $array = array();
-  exec($terminus . ' auth whoami', $array, $exit_code);
+  exec($terminus . ' auth:whoami', $array, $exit_code);
   if ($exit_code !== 0) {
     return drush_set_error('DRUSH_CABOOSE_NO_AUTH', 'Terminus is not authenticated with Pantheon.');
   }
 
   // Backwards compatibility layer, load site name from given UUID if available.
   if (empty($site_name) && !empty($site_uuid)) {
-    $sites_info = json_decode(exec($terminus . ' sites list --format=json'));
-    foreach ($sites_info as $site_info) {
-      if ($site_info->id === $site_uuid) {
-        $site_name = $site_info->name;
+    // Small workaround to ensure users who are not members of an org do not run
+    // into a terminus bug. @see https://github.com/pantheon-systems/terminus/issues/1585
+    exec($terminus . ' org:list', $array, $exit_code);
+    $team_flag = $exit_code !== 0 ? '--team' : '';
+
+    $sites_info = _caboose_exec($terminus . ' site:list ' . $team_flag . ' --format=json');
+    $sites_info = json_decode($sites_info, TRUE);
+
+    foreach ($sites_info as $uuid => $site_info) {
+      if ($uuid === $site_uuid) {
+        $site_name = $site_info['name'];
         break;
       }
     }
@@ -148,8 +162,7 @@ function _caboose_install($env) {
   // terminus site backups get --site={$site_name} --env={$env} --element=db --latest --format=json
   drush_print('Downloading database from (' . $env . ') site backup.' . "\n");
   $destination = drush_tempdir();
-  $raw_url = exec($terminus . ' site backups get --site=' . escapeshellarg($site_name) . ' --env=' . escapeshellarg($env) . ' --element=db --latest --format=json');
-  $url = json_decode($raw_url);
+  $url = _caboose_exec($terminus . ' backup:get ' . escapeshellarg($site_name) . '.' . escapeshellarg($env) . ' --element=db');
   $filename = strstr(basename($url), '?', '_');
 
   $path = _caboose_download_file($url, $destination . DIRECTORY_SEPARATOR . $filename, TRUE);
@@ -309,6 +322,18 @@ function _caboose_freshenup($env) {
  * Abstracted functions...
  */
 
+/**
+ * Executes a command, similar to exec, and captures stdout, including
+ * multi-line output. Ignores stderr completely. Assumes the provided
+ * command has already been sanitized.
+ */
+function _caboose_exec($cmd) {
+  ob_start();
+  passthru($cmd);
+  $response = trim(ob_get_clean());
+  ob_end_clean();
+  return $response;
+}
 
 /**
  * Check if a system command exists.
