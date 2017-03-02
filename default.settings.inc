@@ -14,14 +14,9 @@ $modules_disable = array(
 $modules_enable = array(
   'stage_file_proxy',
   'simpletest',
-  'features_plumber',
-  'advanced_help',
   'update',
   'link_css',
   'devel',
-  'coder',
-  'styleguide',
-  'forminspect',
   'module_builder',
   'search_krumo'
 );
