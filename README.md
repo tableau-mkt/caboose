@@ -6,8 +6,8 @@ Refresh the database on your local development environment from Pantheon and mak
 __Installation:__
  1. Clone into your ~/.drush folder.
  2. Set a site name in sites/default/settings.local.php
-  * `$conf['caboose_pantheon_name'] = 'my-site';` // Drupal 7
-  * `$config['custom']['caboose_pantheon_uuid'] = '11111111-aaaa-2222-bbbb-333333333333'; // Drupal 8
+  * `$conf['caboose_pantheon_name'] = 'my-site'; // Drupal 7`
+  * `$config['custom']['caboose_pantheon_uuid'] = '11111111-aaaa-2222-bbbb-333333333333'; // Drupal 8`
  3. Clear Drush cache with ```drush cc drush``` command.
  4. Copy default.settings.inc as settings.inc to list modules to enable/disable.
  5. Copy default.sanitize.inc as sanitize.inc and adjust (recommended).
