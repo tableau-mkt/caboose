@@ -2,7 +2,7 @@
 /**
  * @file
  * Sanitize the local data for security.
- * Copy as sanitize.php and update for your needs.
+ * Copy as sanitize.inc and update for your needs.
  */
 
 
