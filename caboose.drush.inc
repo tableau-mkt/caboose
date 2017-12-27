@@ -79,6 +79,8 @@ function drush_caboose_validate($env = DEFAULT_ENV) {
 function drush_caboose_fresh($env = DEFAULT_ENV) {
   // set some vars we use
   $terminus = exec('which terminus');
+
+ // todo split is out potentially and clean up if needed
   if (function_exists('variable_get')) {
     $site_uuid = variable_get('caboose_pantheon_uuid', NULL);
     $site_name = variable_get('caboose_pantheon_site', NULL);
@@ -109,7 +111,7 @@ function drush_caboose_fresh($env = DEFAULT_ENV) {
   if (empty($site_name)) {
     return drush_set_error('DRUSH_CABOOSE_NO_SITE', 'No site UUID or name specified.');
   }
-
+  // end todo
 
   // run intro script
   _caboose_intro();
