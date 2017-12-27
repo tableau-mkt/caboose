@@ -77,62 +77,16 @@ function drush_caboose_validate($env = DEFAULT_ENV) {
  *   The dev/test/live environment to target.
  */
 function drush_caboose_fresh($env = DEFAULT_ENV) {
-  if (file_exists(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'say.inc')) {
-    require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'say.inc');
-  }
-
-  _caboose_bling('intro', $message);
-
-  // Get your data onto this environment.
-  if (_caboose_install($env)) {
-
-    // Shape up the install how you like it.
-    if (_caboose_freshenup($env)) {
-      _caboose_bling('outro');
-    }
-
-  }
-
-  return TRUE;
-}
-
-
-/**
- * Run through freshening up steps.
- */
-function _caboose_install($env) {
+  // set some vars we use
   $terminus = exec('which terminus');
 
+ // todo split is out potentially and clean up if needed
   if (function_exists('variable_get')) {
     $site_uuid = variable_get('caboose_pantheon_uuid', NULL);
     $site_name = variable_get('caboose_pantheon_site', NULL);
-  }
-  else {
+  } else {
     $site_uuid = \Drupal::config('custom')->get('caboose_pantheon_uuid');
     $site_name = \Drupal::config('custom')->get('caboose_pantheon_site');
-  }
-
-  // Sanity checking.
-  if (empty($terminus)) {
-    return drush_set_error('DRUSH_CABOOSE_NO_TERMINUS', 'Terminus not available.');
-  }
-  if (version_compare(phpversion(), '5.5') < 0) {
-    return drush_set_error('DRUSH_CABOOSE_PHP_55_MIN', 'Terminus requires PHP 5.5 at a minimum.');
-  }
-
-  // Ensure we're running a compatible version of terminus.
-  $terminus_version = exec($terminus . ' --version', $array, $exit_code);
-  if (preg_match('/\d+(?:\.\d+)+/', $terminus_version, $matches)) {
-    $terminus_version = $matches[0];
-  }
-  if ($exit_code !== 0 || version_compare($terminus_version, '1.0.0') === -1) {
-    return drush_set_error('DRUSH_CABOOSE_TERMINUS_MIN', 'Terminus version must be >= 1.0.0.');
-  }
-
-  // Ensure we're logged in.
-  exec($terminus . ' auth:whoami', $array, $exit_code);
-  if ($exit_code !== 0) {
-    return drush_set_error('DRUSH_CABOOSE_NO_AUTH', 'Terminus is not authenticated with Pantheon.');
   }
 
   // Backwards compatibility layer, load site name from given UUID if available.
@@ -157,6 +111,33 @@ function _caboose_install($env) {
   if (empty($site_name)) {
     return drush_set_error('DRUSH_CABOOSE_NO_SITE', 'No site UUID or name specified.');
   }
+  // end todo
+
+  // run intro script
+  _caboose_intro();
+
+  // set up terminus and get variables
+  _caboose_terminus_settings($terminus);
+  drush_print('Terminus checks out!' . $terminus . "\n");
+  drush_print('Site Name Set!' . $site_name . "\n");
+
+  // Get your data onto this environment.
+  if (_caboose_database_update($env, $terminus, $site_name)) {
+
+    // Shape up the install how you like it.
+    if (_caboose_freshenup($env)) {
+      _caboose_bling('outro');
+    }
+
+  }
+  return TRUE;
+}
+
+
+/**
+ * Run through freshening up steps.
+ */
+function _caboose_database_update($env, $terminus, $site_name) {
 
   // Determine the latest backup URL and download it to the drush tmp folder.
   // terminus site backups get --site={$site_name} --env={$env} --element=db --latest --format=json
@@ -164,7 +145,7 @@ function _caboose_install($env) {
   $destination = drush_tempdir();
   $url = _caboose_exec($terminus . ' backup:get ' . escapeshellarg($site_name) . '.' . escapeshellarg($env) . ' --element=db');
   $filename = strstr(basename($url), '?', '_');
-
+  $exit_code = -1;
   $path = _caboose_download_file($url, $destination . DIRECTORY_SEPARATOR . $filename, TRUE);
 
   if (!$path && !drush_get_context('DRUSH_SIMULATE')) {
@@ -174,7 +155,6 @@ function _caboose_install($env) {
   drush_print("Download was successful. It's here...");
   drush_print("$path\n");
 
-  drush_print("Overwriting database.");
 
   if (function_exists('_drush_sql_get_db_spec')) {
     $db_spec = _drush_sql_get_db_spec();
@@ -185,7 +165,9 @@ function _caboose_install($env) {
     $connect_string = drush_sql_get_class()->connect();
   }
 
+
   // Drop the whole DB to get started fresh.
+  drush_print("Dropping Database.\n");
   shell_exec($connect_string . ' -e "DROP DATABASE ' . $db_spec['database'] . '; CREATE DATABASE ' . $db_spec['database'] . '"');
   // If pv command exists, use it to give an import progress bar
   if (_caboose_command_exists('pv')) {
@@ -195,10 +177,20 @@ function _caboose_install($env) {
     $import_cmd = "gzcat $path | " . $connect_string;
   }
   // Import the SQL file, using system to avoid PHP based import (for memory reasons).
-  system($import_cmd);
-  drush_delete_dir($path);
+  drush_print("Loading Database.\n");
+  system($import_cmd, $exit_code);
 
-  drush_print("Database load complete.\n");
+  // we don't want to move forward and delete the tmp download if we successfully made it this far. Keep the download but alert of the error.
+  // todo we can create a function to allow the user to pass in a parameter and restart the process after addressing the error
+  if ($exit_code !== 0) {
+    drush_print("Uhoh! Looks like something went wrong. Keep this path handy for another try: " . $path . "\n");
+    return drush_set_error('DRUSH_CABOOSE_NO_AUTH', 'Terminus is not authenticated with Pantheon.');
+  }
+  else {
+    drush_print("Deleting tmp download file.\n");
+    drush_delete_dir($path);
+    drush_print("Database load complete.\n");
+  }
 
   return TRUE;
 }
@@ -321,6 +313,52 @@ function _caboose_freshenup($env) {
 /**
  * Abstracted functions...
  */
+
+/*
+ *  Set up the intro fun
+ */
+function _caboose_intro() {
+  if (file_exists(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'say.inc')) {
+    require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'say.inc');
+    _caboose_bling('intro', $message);
+    drush_print('Message is found ' . $message . "\n");
+
+  } else {
+    _caboose_bling('intro');
+  }
+  return TRUE;
+}
+/*
+ * Terminus installation and validation
+ *  returns if sanity checks pass
+ */
+function _caboose_terminus_settings($terminus) {
+
+  // Sanity checking.
+  if (empty($terminus)) {
+    return drush_set_error('DRUSH_CABOOSE_NO_TERMINUS', 'Terminus not available.');
+  }
+  if (version_compare(phpversion(), '5.5') < 0) {
+    return drush_set_error('DRUSH_CABOOSE_PHP_55_MIN', 'Terminus requires PHP 5.5 at a minimum.');
+  }
+
+  // Ensure we're running a compatible version of terminus.
+  $terminus_version = exec($terminus . ' --version', $array, $exit_code);
+  if (preg_match('/\d+(?:\.\d+)+/', $terminus_version, $matches)) {
+    $terminus_version = $matches[0];
+  }
+  if ($exit_code !== 0 || version_compare($terminus_version, '1.0.0') === -1) {
+    return drush_set_error('DRUSH_CABOOSE_TERMINUS_MIN', 'Terminus version must be >= 1.0.0.');
+  }
+
+  // Ensure we're logged in.
+  exec($terminus . ' auth:whoami', $array, $exit_code);
+  if ($exit_code !== 0) {
+    return drush_set_error('DRUSH_CABOOSE_NO_AUTH', 'Terminus is not authenticated with Pantheon.');
+  }
+
+  return TRUE;
+}
 
 /**
  * Executes a command, similar to exec, and captures stdout, including
